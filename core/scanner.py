@@ -92,3 +92,30 @@ class Scanner:
             'total_size_mb': total_size / (1024 * 1024),
             'root_path': self.root_path,
         }
+
+    def _classify(self, full_path: str) -> MediaFile | None:
+        """Classify a single file path into a MediaFile."""
+        ext = os.path.splitext(full_path)[1].lower()
+        if ext not in SUPPORTED_EXTENSIONS:
+            return None
+        filename = os.path.basename(full_path)
+        folder_path = os.path.dirname(full_path)
+        file_type = 'image' if ext in IMAGE_EXTENSIONS else 'video'
+        try:
+            size = os.path.getsize(full_path)
+        except OSError:
+            size = 0
+        # Derive location from folder structure relative to root
+        rel_dir = os.path.relpath(folder_path, self.root_path)
+        folder_location = ''
+        if rel_dir != '.':
+            folder_location = rel_dir.replace(os.sep, ' / ')
+        return MediaFile(
+            path=full_path,
+            name=filename,
+            folder_path=folder_path,
+            file_type=file_type,
+            extension=ext,
+            size_bytes=size,
+            folder_location=folder_location,
+        )
