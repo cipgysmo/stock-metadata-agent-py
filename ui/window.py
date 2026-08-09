@@ -163,6 +163,15 @@ class MainWindow(QMainWindow):
 
         self._is_processing = True
         self._current_folder = folder_path
+        # Clear old results and stats for a clean slate
+        self._process_panel._stats_card.setVisible(False)
+        self._process_panel._results_view._table.setRowCount(0)
+        self._process_panel._results_view._table.setVisible(False)
+        self._process_panel._results_view._placeholder.setVisible(True)
+        self._process_panel._results_view._placeholder.setText("Processing...")
+        self._process_panel._results_view._detail.setVisible(False)
+        self._process_panel._results_view._results = []
+        self._process_panel._results_view._file_paths = []
         self._process_panel.set_processing_state(True)
         self._progress_bar.setRange(0, 100)
         self._progress_bar.setValue(0)
@@ -685,21 +694,23 @@ class ResultsView(QWidget):
         if row < 0 or row >= len(self._file_paths):
             return
         file_path = self._file_paths[row]
-        if not os.path.exists(file_path):
-            return
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Double-click open: {file_path} (exists={os.path.exists(file_path)})")
         # Open file with default application
         try:
             import subprocess
+            import ctypes
             if os.name == 'nt':
-                # Use ShellExecute via ctypes for reliability on Windows
-                import ctypes
+                # ShellExecuteW - must use native Windows path with backslashes
+                native_path = file_path.replace('/', '\\')
                 ctypes.windll.shell32.ShellExecuteW(
-                    None, 'open', file_path, None, None, 1
+                    None, 'open', native_path, None, None, 1
                 )
             else:
                 subprocess.Popen(['open', file_path])
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Failed to open file {file_path}: {e}")
 
     def _load_thumbnail(self, file_path):
         if not os.path.exists(file_path):
