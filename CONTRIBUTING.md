@@ -6,18 +6,19 @@
 # Clone and set up
 git clone https://github.com/cipgysmo/stock-metadata-agent-py.git
 cd stock-metadata-agent-py
-python3 -m venv .venv
-source .venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
 # Run directly (no build required)
-python3 main.py
+python main.py
 ```
 
 ## Running Tests
 
 ```bash
-.venv/bin/python3 -m pytest tests/ -v
+.venv/bin/python -m pytest tests/ -v
+# On Windows: .venv\Scripts\python -m pytest tests/ -v
 ```
 
 ## Project Conventions
@@ -65,8 +66,8 @@ The `.spec` file bundles the Python interpreter, all dependencies, and platform-
 1. Fork the repository
 2. Create a feature branch from `master`
 3. Make changes, add tests
-4. Run tests locally: `python3 -m pytest tests/`
-5. Verify the app launches: `python3 main.py`
+4. Run tests locally: `python -m pytest tests/`
+5. Verify the app launches: `python main.py`
 6. Submit PR with description of changes
 
 ## Reporting Issues

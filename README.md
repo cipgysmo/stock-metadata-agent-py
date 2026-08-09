@@ -115,14 +115,14 @@ git clone https://github.com/cipgysmo/stock-metadata-agent-py.git
 cd stock-metadata-agent-py
 
 # Create virtual environment
-python3 -m venv .venv
+python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
 
 # Run directly
-python3 main.py
+python main.py
 ```
 
 ---
@@ -416,7 +416,7 @@ For each file in a batch:
 ### macOS
 
 ```bash
-python3 -m venv .venv
+python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt pyinstaller
 pyinstaller --clean stock-metadata-agent.spec
