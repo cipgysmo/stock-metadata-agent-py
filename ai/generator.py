@@ -167,9 +167,9 @@ class MetadataGenerator:
                 metadata = self._parse_response(content)
 
                 if metadata.title or metadata.keywords:
-                    # Post-process: enforce 180-200 chars using factual vision data
                     metadata.title = self._enforce_title(metadata.title, vision, location)
                     metadata.description = metadata.title
+                    metadata.keywords = self._reorder_keywords(metadata.keywords, vision, location, gps_info)
                     if content_type_override:
                         metadata.content_type = content_type_override.title()
                     return metadata
@@ -193,6 +193,7 @@ class MetadataGenerator:
                 if metadata.title or metadata.keywords:
                     metadata.title = self._enforce_title(metadata.title, vision, location)
                     metadata.description = metadata.title
+                    metadata.keywords = self._reorder_keywords(metadata.keywords, vision, location, gps_info)
                     if content_type_override:
                         metadata.content_type = content_type_override.title()
                     logger.info("Cloud fallback succeeded")
@@ -391,6 +392,56 @@ class MetadataGenerator:
             title = base + "."
 
         return title
+
+    def _reorder_keywords(
+        self, keywords: list[str], vision: VisionAnalysis, location: Location, gps_info: GPSInfo | None = None,
+    ) -> list[str]:
+        """Move high-priority keywords (landmark, city, country, subject) to the front."""
+        if not keywords:
+            return keywords
+
+        kw_lower = [k.lower() for k in keywords]
+        pinned: list[str] = []
+        pinned_set: set[str] = set()
+        used_indices: set[int] = set()
+
+        # Build priority terms from vision/location/GPS
+        priority_terms: list[str] = []
+        if vision.landmark:
+            priority_terms.append(vision.landmark.lower())
+            for word in vision.landmark.split():
+                if len(word) > 2:
+                    priority_terms.append(word.lower())
+        city = (gps_info.exif_city if gps_info else '') or vision.city or location.city
+        if city:
+            priority_terms.append(city.lower())
+        country = (gps_info.exif_country if gps_info else '') or vision.country or location.country
+        if country:
+            priority_terms.append(country.lower())
+        region = ((gps_info.exif_state or gps_info.exif_region) if gps_info else '') or vision.region or location.region
+        if region:
+            priority_terms.append(region.lower())
+        if vision.main_subject:
+            priority_terms.append(vision.main_subject.lower())
+            for word in vision.main_subject.split():
+                if len(word) > 2:
+                    priority_terms.append(word.lower())
+
+        # Pin matching keywords in priority order
+        for term in priority_terms:
+            for i, kw in enumerate(kw_lower):
+                if i in used_indices or kw in pinned_set:
+                    continue
+                if term in kw or kw in term:
+                    pinned.append(keywords[i])
+                    pinned_set.add(kw)
+                    used_indices.add(i)
+                    break
+
+        # Remaining keywords keep their original order
+        rest = [k for j, k in enumerate(keywords) if j not in used_indices]
+
+        return pinned + rest
 
     def _deduplicate_keywords(self, keywords: list[str]) -> list[str]:
         if not keywords:
