@@ -40,7 +40,7 @@ class GeneratedMetadata:
             self.title
             and self.description
             and len(self.title) <= MAX_TITLE_LENGTH
-            and MIN_KEYWORD_COUNT <= len(self.keywords) <= MAX_KEYWORD_COUNT
+            and 10 <= len(self.keywords) <= MAX_KEYWORD_COUNT
         )
 
 
@@ -469,25 +469,10 @@ class MetadataGenerator:
         return result
 
     def _fix_keyword_count(self, keywords: list[str]) -> list[str]:
+        """Just enforce the maximum count. No padding."""
         if len(keywords) > MAX_KEYWORD_COUNT:
             return keywords[:MAX_KEYWORD_COUNT]
-        if len(keywords) >= MIN_KEYWORD_COUNT:
-            return keywords
-        padding = [
-            'creative', 'art', 'concept', 'idea', 'inspiration',
-            'visual', 'design', 'background', 'scene', 'environment',
-            'outdoor', 'indoor', 'photograph', 'capture', 'shot',
-            'view', 'panorama', 'perspective', 'composition',
-            'atmosphere', 'mood', 'tone', 'style', 'aesthetic',
-        ]
-        seen = {k.lower() for k in keywords}
-        for p in padding:
-            if len(keywords) >= MIN_KEYWORD_COUNT:
-                break
-            if p.lower() not in seen:
-                keywords.append(p)
-                seen.add(p.lower())
-        return keywords[:MAX_KEYWORD_COUNT]
+        return keywords
 
     def _repair_json(self, text: str) -> dict | None:
         data = {}
