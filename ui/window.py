@@ -422,7 +422,7 @@ class ProcessPage(QWidget):
         right.setContentsMargins(0, 0, 0, 0)
 
         # Results table (stretches to fill available height)
-        self._results_view = ResultsView(self)
+        self._results_view = ResultsView(self, self.main_window)
         right.addWidget(self._results_view, 1)
 
         # Stats card (single row, shown after batch)
@@ -528,8 +528,9 @@ class ProcessPage(QWidget):
 class ResultsView(QWidget):
     """Results table with thumbnail preview and detail panel."""
 
-    def __init__(self, parent):
+    def __init__(self, parent, main_window):
         super().__init__(parent)
+        self.main_window = main_window
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
@@ -540,17 +541,15 @@ class ResultsView(QWidget):
         self._placeholder.setStyleSheet("font-size: 14px; padding: 60px; color: " + ('#71717a' if _is_dark() else '#9ca3af'))
         layout.addWidget(self._placeholder, 1)
 
-        # Table — 3 columns: File, Title, Rerun
+        # Table — 2 columns: File (with rerun button), Title
         self._table = QTableWidget()
-        self._table.setColumnCount(3)
-        self._table.setHorizontalHeaderLabels(["File", "Title", ""])
+        self._table.setColumnCount(2)
+        self._table.setHorizontalHeaderLabels(["File", "Title"])
         self._table.setFrameShape(QFrame.NoFrame)
         self._table.setCornerButtonEnabled(False)
         header = self._table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        self._table.setColumnWidth(2, 60)
         self._table.setSelectionBehavior(QTableWidget.SelectRows)
         self._table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._table.verticalHeader().setVisible(False)
@@ -644,6 +643,28 @@ class ResultsView(QWidget):
         self._table.itemSelectionChanged.connect(self._on_selection)
 
     @staticmethod
+    def _rerun_icon_svg():
+        from PySide6.QtGui import QPainter
+        from PySide6.QtSvg import QSvgRenderer
+        from PySide6.QtCore import QByteArray, QSize
+        svg = (
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" '
+            'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+            '<path d="M21 2v6h-6"/>'
+            '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>'
+            '<path d="M3 22v-6h6"/>'
+            '<path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>'
+            '</svg>'
+        )
+        renderer = QSvgRenderer(QByteArray(svg.encode()))
+        img = QImage(24, 24, QImage.Format.Format_ARGB32)
+        img.fill(0)
+        painter = QPainter(img)
+        renderer.render(painter)
+        painter.end()
+        return QIcon(QPixmap.fromImage(img))
+
+    @staticmethod
     def _copy_icon_svg():
         from PySide6.QtGui import QPainter
         from PySide6.QtSvg import QSvgRenderer
@@ -670,21 +691,32 @@ class ResultsView(QWidget):
         row = self._table.rowCount()
         self._table.insertRow(row)
 
-        file_item = QTableWidgetItem(os.path.basename(result.file_path))
-        file_item.setData(Qt.UserRole, result.file_path)
-        self._table.setItem(row, 0, file_item)
+        # File name with rerun button in a container
+        file_container = QWidget()
+        file_layout = QHBoxLayout(file_container)
+        file_layout.setContentsMargins(0, 0, 0, 0)
+        file_layout.setSpacing(6)
+        file_label = QLabel(os.path.basename(result.file_path))
+        file_label.setStyleSheet("font-size: 13px;")
+        file_layout.addWidget(file_label, 1)
+        rerun_btn = QPushButton()
+        rerun_btn.setIcon(self._rerun_icon_svg())
+        rerun_btn.setFixedSize(24, 24)
+        rerun_btn.setToolTip("Regenerate vision + text for this file")
+        rerun_btn.clicked.connect(lambda checked, r=row: self._on_rerun_row(r))
+        file_layout.addWidget(rerun_btn)
+        # Store file path in the container
+        file_layout.setProperty('file_path', result.file_path)
+        # Use a widget for the file column
+        self._table.setCellWidget(row, 0, file_container)
+        # Store the file path in UserRole of a hidden item for double-click handling
+        hidden_item = QTableWidgetItem("")
+        hidden_item.setData(Qt.UserRole, result.file_path)
+        self._table.setItem(row, 0, hidden_item)
 
         # Title
         title_text = result.title[:80] + ('…' if len(result.title) > 80 else '')
         self._table.setItem(row, 1, QTableWidgetItem(title_text))
-
-        # Rerun button
-        rerun_btn = QPushButton("Rerun")
-        rerun_btn.setObjectName('secondary')
-        rerun_btn.setFixedSize(40, 24)
-        rerun_btn.setToolTip("Regenerate vision + text for this file")
-        rerun_btn.clicked.connect(lambda checked, r=row: self._on_rerun_row(r))
-        self._table.setCellWidget(row, 2, rerun_btn)
 
         self._results.append(result)
         self._file_paths.append(result.file_path)
@@ -740,10 +772,13 @@ class ResultsView(QWidget):
         if not vision:
             return
         # Disable the button for this row
-        btn = self._table.cellWidget(row, 2)
-        if btn:
-            btn.setEnabled(False)
-            btn.setText("...")
+        container = self._table.cellWidget(row, 0)
+        if container:
+            for i in range(container.layout().count()):
+                w = container.layout().itemAt(i).widget()
+                if isinstance(w, QPushButton):
+                    w.setEnabled(False)
+                    w.setIcon(QIcon())
         # Run in background thread
         self._rerun_worker = _RerunWorker(
             self.main_window._orchestrator,
@@ -764,13 +799,22 @@ class ResultsView(QWidget):
         if not result:
             return
         # Re-enable the button
-        btn = self._table.cellWidget(row, 2)
-        if btn:
-            btn.setEnabled(True)
-            btn.setText("Rerun")
+        container = self._table.cellWidget(row, 0)
+        if container:
+            for i in range(container.layout().count()):
+                w = container.layout().itemAt(i).widget()
+                if isinstance(w, QPushButton):
+                    w.setEnabled(True)
+                    w.setIcon(self._rerun_icon_svg())
         # Update the result in the list
         self._results[row] = result
-        # Update table row
+        # Update table row - update file name label and title
+        container = self._table.cellWidget(row, 0)
+        if container:
+            for i in range(container.layout().count()):
+                w = container.layout().itemAt(i).widget()
+                if isinstance(w, QLabel):
+                    w.setText(os.path.basename(result.file_path))
         title_text = result.title[:80] + ('…' if len(result.title) > 80 else '')
         self._table.setItem(row, 1, QTableWidgetItem(title_text))
         # Update detail panel if this file is selected
@@ -802,8 +846,13 @@ class ResultsView(QWidget):
             return
         if row < 0 or row >= len(self._file_paths):
             return
-        file_path = self._file_paths[row]
-        if not os.path.exists(file_path):
+        # Get file path from the hidden item in the file column
+        hidden_item = self._table.item(row, 0)
+        if hidden_item:
+            file_path = hidden_item.data(Qt.UserRole)
+        else:
+            file_path = self._file_paths[row]
+        if not file_path or not os.path.exists(file_path):
             return
         # Open file with default application
         try:
@@ -928,7 +977,7 @@ class _ExpandableHeader(QFrame):
 
         # Text
         painter.setPen(text_color)
-        font = QFont('system', 12, QFont.Weight.Bold)
+        font = QFont('Helvetica Neue' if sys.platform == 'darwin' else 'Segoe UI', 12, QFont.Weight.Bold)
         painter.setFont(font)
         painter.drawText(QRect(28, 0, self.width(), 32), Qt.AlignVCenter, self._text)
 
