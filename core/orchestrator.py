@@ -463,7 +463,9 @@ class BatchOrchestrator:
 
             # Merge technology keywords when technology-focused scene
             if vision.technology_focus and vision.technology_keywords:
-                all_keywords = list(vision.technology_keywords)
+                # Filter tech keywords: remove terms that contradict the main subject
+                tech_kw = self._filter_tech_keywords(vision.technology_keywords, vision)
+                all_keywords = list(tech_kw)
                 for kw in metadata.keywords:
                     kw_lower = kw.lower().strip()
                     if kw_lower and kw_lower not in [k.lower() for k in all_keywords]:
@@ -639,6 +641,37 @@ class BatchOrchestrator:
                 seen.add(g.lower())
 
         return unique[:MAX_KEYWORD_COUNT]
+
+    def _filter_tech_keywords(self, tech_keywords: list[str], vision) -> list[str]:
+        """Remove technology keywords that contradict the vision's main subject."""
+        # Build a set of contradictory pairs
+        CONTRADICTIONS = {
+            'solar': {'wind', 'turbine', 'turbine'},
+            'wind': {'solar', 'panel'},
+        }
+        main_subject = (getattr(vision, 'main_subject', '') or '').lower()
+        visible = ' '.join(getattr(vision, 'visible_objects', []) or []).lower()
+        scene_text = main_subject + ' ' + visible
+
+        # If the scene clearly mentions wind turbines, filter out solar keywords
+        filtered = []
+        for kw in tech_keywords:
+            kw_lower = kw.lower()
+            skip = False
+            for solar_term, wind_terms in CONTRADICTIONS.items():
+                if solar_term in kw_lower:
+                    # Remove solar keywords if wind turbine is the main subject
+                    if any(wt in scene_text for wt in wind_terms):
+                        skip = True
+                        break
+                elif any(wt in kw_lower for wt in wind_terms):
+                    # Remove wind keywords if solar is the main subject
+                    if solar_term in scene_text and 'wind' not in scene_text:
+                        skip = True
+                        break
+            if not skip:
+                filtered.append(kw)
+        return filtered
 
     def _write_metadata(self, file_info: MediaFile, result: FileResult) -> None:
         """Write metadata to the file or create sidecar."""

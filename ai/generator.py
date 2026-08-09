@@ -67,7 +67,7 @@ Output ONLY a JSON object with these fields:
  - Tier 1 (first 15-20): literal subject terms — what is physically in the frame
  - Tier 2 (next 10-15): context terms — location type, time of day, composition, demographics
  - Tier 3 (last 5-10): conceptual/emotional terms — what the image represents
- - **SINGLE-WORD FIRST**: Always use single-word keywords whenever possible. "solar panels" should be two keywords: "solar" AND "panels". Only use multi-word keywords for proper names that must stay together ("New York City", "Mont Saint-Michel").
+  - **SINGLE-WORD FIRST**: Always use single-word keywords whenever possible. "red car" should be two keywords: "red" AND "car". Only use multi-word keywords for proper names that must stay together ("New York City", "Mont Saint-Michel").
  - Max 3 keywords sharing the same root word. No filler.
  - Every keyword must be literally accurate to the image.
  - QUALITY OVER QUANTITY: Only include keywords that are actually relevant. Better to have 20 accurate keywords than 35 padded with spam. Stop when you've exhausted truly relevant terms.
