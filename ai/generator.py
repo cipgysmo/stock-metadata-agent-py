@@ -180,7 +180,7 @@ class MetadataGenerator:
                 if metadata.title or metadata.keywords:
                     if content_type_override:
                         metadata.content_type = (content_type_override or '').title()
-                    metadata.title = self._enforce_title(metadata.title or '', vision, location, metadata.content_type or 'Commercial')
+                    metadata.title = self._enforce_title(metadata.title or '', vision, location, metadata.content_type or 'Commercial', gps_info)
                     metadata.description = metadata.title
                     metadata.keywords = self._reorder_keywords(metadata.keywords, vision, location, gps_info)
                     return metadata
@@ -204,7 +204,7 @@ class MetadataGenerator:
                 if metadata and (metadata.title or metadata.keywords):
                     if content_type_override:
                         metadata.content_type = (content_type_override or '').title()
-                    metadata.title = self._enforce_title(metadata.title or '', vision, location, metadata.content_type or 'Commercial')
+                    metadata.title = self._enforce_title(metadata.title or '', vision, location, metadata.content_type or 'Commercial', gps_info)
                     metadata.description = metadata.title
                     metadata.keywords = self._reorder_keywords(metadata.keywords, vision, location, gps_info)
                     logger.info("Cloud fallback succeeded")
@@ -362,7 +362,7 @@ class MetadataGenerator:
                 result.extend(words)
         return result
 
-    def _enforce_title(self, title: str, vision: VisionAnalysis, location: Location, content_type: str = 'Commercial') -> str:
+    def _enforce_title(self, title: str, vision: VisionAnalysis, location: Location, content_type: str = 'Commercial', gps_info: GPSInfo | None = None) -> str:
         """Ensure 180-200 chars. Truncates over 200 at word boundary. Expands under 180 using factual vision/location data."""
         if not title:
             return title
@@ -420,13 +420,36 @@ class MetadataGenerator:
                     base = candidate
             title = base + "."
 
-        # Sentence-case: only first letter capitalized, rest lowercase
-        title = self._sentence_case(title)
+        # Sentence-case: only first letter capitalized, rest lowercase (preserve proper nouns)
+        proper_nouns = self._collect_proper_nouns(vision, location, gps_info)
+        title = self._sentence_case(title, proper_nouns)
 
         return title
 
-    def _sentence_case(self, title: str) -> str:
-        """Convert title to sentence case: first letter capitalized, all others lowercase."""
+    def _collect_proper_nouns(
+        self, vision: VisionAnalysis, location: Location, gps_info: GPSInfo | None = None,
+    ) -> list[str]:
+        """Collect known proper nouns from vision/location data to preserve capitalization."""
+        nouns: list[str] = []
+        city = (gps_info.exif_city if gps_info else '') or vision.city or location.city
+        if city:
+            nouns.append(city)
+        country = (gps_info.exif_country if gps_info else '') or vision.country or location.country
+        if country:
+            nouns.append(country)
+        region = ((gps_info.exif_state or gps_info.exif_region) if gps_info else '') or vision.region or location.region
+        if region:
+            nouns.append(region)
+        landmark = vision.landmark or location.landmark
+        if landmark:
+            nouns.append(landmark)
+        sublocation = (gps_info.exif_sublocation if gps_info else '') or location.sublocation
+        if sublocation:
+            nouns.append(sublocation)
+        return nouns
+
+    def _sentence_case(self, title: str, proper_nouns: list[str] | None = None) -> str:
+        """Convert title to sentence case: first letter capitalized, all others lowercase, preserving proper nouns."""
         if not title:
             return title or ''
         # Strip trailing period, process, then re-add
@@ -436,10 +459,17 @@ class MetadataGenerator:
         sentences = [s.strip() for s in title.split('.') if s.strip()]
         result = []
         for sent in sentences:
-            sent = sent.lower()
-            if sent:
-                sent = sent[0].upper() + sent[1:]
-            result.append(sent)
+            sent_lower = sent.lower()
+            # Restore proper nouns to title case
+            if proper_nouns:
+                for noun in proper_nouns:
+                    noun_lower = noun.lower()
+                    if noun_lower in sent_lower:
+                        # Replace all occurrences of the lowercase noun with title case
+                        sent_lower = sent_lower.replace(noun_lower, noun)
+            if sent_lower:
+                sent_lower = sent_lower[0].upper() + sent_lower[1:]
+            result.append(sent_lower)
         out = '. '.join(result)
         if has_period:
             out += '.'
