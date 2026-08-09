@@ -730,9 +730,12 @@ class ResultsView(QWidget):
         if not os.path.exists(file_path):
             return
         # Open file with default application
-        import subprocess
         try:
-            subprocess.Popen(['open', file_path])
+            if os.name == 'nt':
+                os.startfile(file_path)
+            else:
+                import subprocess
+                subprocess.Popen(['open', file_path])
         except Exception:
             pass
 
