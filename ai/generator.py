@@ -71,7 +71,7 @@ Output ONLY a JSON object with these fields:
  - Use plain, common single- or two-word terms. Multi-word phrases only as units ("New York City").
  - Max 3 keywords sharing the same root word. No filler.
  - Every keyword must be literally accurate to the image.
- - BANNED keywords (NEVER include): stock photography, stock photo, stock images, stock footage, professional photography, professional photo, high quality, high resolution, high definition, royalty free, copyrighted, for sale, commercial use, editorial use, premium quality, creative, art, concept, idea, inspiration, visual, design, background, scene, environment, outdoor, indoor, photograph, capture, shot, view, panorama, perspective, composition, atmosphere, mood, tone, style, aesthetic.
+ - BANNED keywords (NEVER include): stock photography, stock photo, stock images, stock footage, professional photography, professional photo, high quality, high resolution, high definition, royalty free, copyrighted, for sale, commercial use, editorial use, premium quality, creative, concept, visual, design, background, scene, photograph, capture, shot, perspective, composition, tone, aesthetic.
 
 LOCATION RULES:
 - If the scene has identifiable geographic features (landmark, landscape), include location.
