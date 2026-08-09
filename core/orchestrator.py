@@ -758,3 +758,10 @@ class BatchOrchestrator:
         )
 
         return result
+
+    def _report_progress(self, current: int, total: int, message: str) -> None:
+        """Report progress update."""
+        try:
+            self.signals.progress_updated.emit(current, total, message)
+        except Exception as e:
+            logger.warning(f"Progress signal error: {e}")

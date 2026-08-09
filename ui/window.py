@@ -540,15 +540,17 @@ class ResultsView(QWidget):
         self._placeholder.setStyleSheet("font-size: 14px; padding: 60px; color: " + ('#71717a' if _is_dark() else '#9ca3af'))
         layout.addWidget(self._placeholder, 1)
 
-        # Table — 2 columns: File, Title
+        # Table — 3 columns: File, Title, Rerun
         self._table = QTableWidget()
-        self._table.setColumnCount(2)
-        self._table.setHorizontalHeaderLabels(["File", "Title"])
+        self._table.setColumnCount(3)
+        self._table.setHorizontalHeaderLabels(["File", "Title", ""])
         self._table.setFrameShape(QFrame.NoFrame)
         self._table.setCornerButtonEnabled(False)
         header = self._table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        self._table.setColumnWidth(2, 60)
         self._table.setSelectionBehavior(QTableWidget.SelectRows)
         self._table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._table.verticalHeader().setVisible(False)
@@ -631,18 +633,6 @@ class ResultsView(QWidget):
         kw_row.addWidget(self._copy_kw_btn)
         meta_layout.addLayout(kw_row)
 
-        # Rerun button
-        meta_layout.addStretch()
-        btn_row = QHBoxLayout()
-        btn_row.addStretch()
-        self._rerun_btn = QPushButton("Rerun AI")
-        self._rerun_btn.setObjectName('secondary')
-        self._rerun_btn.setFixedSize(80, 28)
-        self._rerun_btn.setToolTip("Regenerate vision + text for this file")
-        self._rerun_btn.clicked.connect(self._on_rerun_selected)
-        btn_row.addWidget(self._rerun_btn)
-        meta_layout.addLayout(btn_row)
-
         detail_layout.addLayout(meta_layout, 1)
         layout.addWidget(self._detail)
 
@@ -687,6 +677,14 @@ class ResultsView(QWidget):
         # Title
         title_text = result.title[:80] + ('…' if len(result.title) > 80 else '')
         self._table.setItem(row, 1, QTableWidgetItem(title_text))
+
+        # Rerun button
+        rerun_btn = QPushButton("Rerun")
+        rerun_btn.setObjectName('secondary')
+        rerun_btn.setFixedSize(40, 24)
+        rerun_btn.setToolTip("Regenerate vision + text for this file")
+        rerun_btn.clicked.connect(lambda checked, r=row: self._on_rerun_row(r))
+        self._table.setCellWidget(row, 2, rerun_btn)
 
         self._results.append(result)
         self._file_paths.append(result.file_path)
@@ -733,25 +731,27 @@ class ResultsView(QWidget):
         from PySide6.QtWidgets import QApplication
         QApplication.clipboard().setText(text)
 
-    def _on_rerun_selected(self):
-        """Rerun vision and text generation for the selected file."""
-        if not self._current_result:
+    def _on_rerun_row(self, row):
+        """Rerun vision and text generation for a specific row."""
+        if row < 0 or row >= len(self._results):
             return
-        file_path = self._current_result.file_path
-        vision = getattr(self._current_result, 'vision_analysis', None)
+        result = self._results[row]
+        vision = getattr(result, 'vision_analysis', None)
         if not vision:
             return
-        # Disable button during rerun
-        self._rerun_btn.setEnabled(False)
-        self._rerun_btn.setText("Running...")
+        # Disable the button for this row
+        btn = self._table.cellWidget(row, 2)
+        if btn:
+            btn.setEnabled(False)
+            btn.setText("...")
         # Run in background thread
         self._rerun_worker = _RerunWorker(
             self.main_window._orchestrator,
-            file_path,
+            result.file_path,
             vision,
             self.main_window._process_panel._options_card.get_content_type_override(),
         )
-        self._rerun_worker.finished.connect(self._on_rerun_finished)
+        self._rerun_worker.finished.connect(lambda r, row=row: self._on_rerun_finished(r, row))
         self._rerun_thread = QThread()
         self._rerun_worker.moveToThread(self._rerun_thread)
         self._rerun_thread.started.connect(self._rerun_worker.run)
@@ -759,28 +759,43 @@ class ResultsView(QWidget):
         self._rerun_thread.finished.connect(self._rerun_thread.deleteLater)
         self._rerun_thread.start()
 
-    def _on_rerun_finished(self, result):
-        """Handle rerun completion: update table, detail, and write metadata."""
-        self._rerun_btn.setEnabled(True)
-        self._rerun_btn.setText("Rerun AI")
+    def _on_rerun_finished(self, result, row):
+        """Handle rerun completion: update table, detail, CSV, and re-embed metadata."""
         if not result:
             return
-        # Find and update the result in the table
-        for i, r in enumerate(self._results):
-            if r.file_path == result.file_path:
-                self._results[i] = result
-                # Update table
-                title_text = result.title[:80] + ('…' if len(result.title) > 80 else '')
-                self._table.setItem(i, 1, QTableWidgetItem(title_text))
-                # Update detail panel if this file is selected
-                if self._current_result and self._current_result.file_path == result.file_path:
-                    self._current_result = result
-                    self._detail_name.setText(os.path.basename(result.file_path))
-                    self._detail_type.setText(getattr(result, 'content_type', 'Commercial') or 'Commercial')
-                    self._detail_category.setText(getattr(result, 'category', '') or '—')
-                    self._detail_title.setText(result.title)
-                    self._detail_keywords.setText(', '.join(result.keywords))
-                break
+        # Re-enable the button
+        btn = self._table.cellWidget(row, 2)
+        if btn:
+            btn.setEnabled(True)
+            btn.setText("Rerun")
+        # Update the result in the list
+        self._results[row] = result
+        # Update table row
+        title_text = result.title[:80] + ('…' if len(result.title) > 80 else '')
+        self._table.setItem(row, 1, QTableWidgetItem(title_text))
+        # Update detail panel if this file is selected
+        if self._current_result and self._current_result.file_path == result.file_path:
+            self._current_result = result
+            self._detail_name.setText(os.path.basename(result.file_path))
+            self._detail_type.setText(getattr(result, 'content_type', 'Commercial') or 'Commercial')
+            self._detail_category.setText(getattr(result, 'category', '') or '—')
+            self._detail_title.setText(result.title)
+            self._detail_keywords.setText(', '.join(result.keywords))
+        # Re-export CSV if it exists
+        self._update_csv()
+
+    def _update_csv(self):
+        """Update the CSV export with all current results."""
+        if not hasattr(self.main_window, '_current_folder'):
+            return
+        if not self.main_window._process_panel._options_card.get_export_csv():
+            return
+        if not self._results:
+            return
+        from export.csv import CsvExporter
+        exporter = CsvExporter()
+        csv_path = os.path.join(self.main_window._current_folder, 'metadata_export.csv')
+        exporter.export_batch(self._results, csv_path)
 
     def _on_double_click(self, row, col):
         if col != 0:
