@@ -29,8 +29,11 @@ def _find_and_cache_exiftool() -> str:
 
     bundled_paths = [
         os.path.join(base_dir, '..', 'resources', f'exiftool-{platform}', exe),
+        os.path.join(base_dir, '..', '..', 'resources', f'exiftool-{platform}', exe),
         os.path.join(base_dir, '..', 'resources', 'exiftool-mac', exe),
+        os.path.join(base_dir, '..', '..', 'resources', 'exiftool-mac', exe),
         os.path.join(base_dir, '..', 'resources', 'exiftool-win', exe),
+        os.path.join(base_dir, '..', '..', 'resources', 'exiftool-win', exe),
         os.path.join(SETTINGS_DIR, 'exiftool', exe),
         os.path.join('resources', f'exiftool-{platform}', exe),
         os.path.join('resources', 'exiftool-mac', exe),
@@ -68,10 +71,13 @@ class MetadataWriter:
 
         # Check bundled locations in priority order
         bundled_paths = [
-            # In resources subdir of project
+            # In resources subdir of project (1 and 2 levels up)
             os.path.join(base_dir, '..', 'resources', f'exiftool-{platform}', exe),
+            os.path.join(base_dir, '..', '..', 'resources', f'exiftool-{platform}', exe),
             os.path.join(base_dir, '..', 'resources', 'exiftool-mac', exe),
+            os.path.join(base_dir, '..', '..', 'resources', 'exiftool-mac', exe),
             os.path.join(base_dir, '..', 'resources', 'exiftool-win', exe),
+            os.path.join(base_dir, '..', '..', 'resources', 'exiftool-win', exe),
             # In settings dir
             os.path.join(SETTINGS_DIR, 'exiftool', exe),
             # In resources relative to cwd
