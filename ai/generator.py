@@ -58,7 +58,6 @@ Output ONLY a JSON object with these fields:
  - Write one or two complete sentences. Must end on a period. Never truncate mid-sentence.
  - Length must be between 180 and 200 characters. Check carefully.
  - Lead with primary subject and action, then setting, then secondary detail or concept.
- - Example (194 chars): "Young woman works on a laptop at a wooden desk in a bright modern home office, surrounded by houseplants and natural light streaming through a large window."
  - Do NOT repeat the same phrase just to reach the character count. Every added clause must contribute real, accurate information.
  - If editorial, lead with dateline: "City, Country - Month DD, YYYY: [factual sentence expanded to length]."
  - For COMMERCIAL content: the title MUST be a natural flowing sentence. NEVER use dashes (-), hyphens, colons, semicolons, or pipes. Only use periods (.) and commas (,). No special characters (&, %, #, emoji). No ALL CAPS.
