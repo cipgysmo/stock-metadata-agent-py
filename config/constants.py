@@ -47,6 +47,11 @@ BANNED_KEYWORDS = {
     'high quality', 'high resolution', 'high definition',
     'royalty free', 'copyrighted', 'for sale', 'commercial use',
     'editorial use', 'premium quality',
+    'creative', 'art', 'concept', 'idea', 'inspiration',
+    'visual', 'design', 'background', 'scene', 'environment',
+    'outdoor', 'indoor', 'photograph', 'capture', 'shot',
+    'view', 'panorama', 'perspective', 'composition',
+    'atmosphere', 'mood', 'tone', 'style', 'aesthetic',
 }
 
 # Photo categories for classification
