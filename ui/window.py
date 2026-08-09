@@ -689,10 +689,14 @@ class ResultsView(QWidget):
             return
         # Open file with default application
         try:
+            import subprocess
             if os.name == 'nt':
-                os.startfile(file_path)
+                # Use ShellExecute via ctypes for reliability on Windows
+                import ctypes
+                ctypes.windll.shell32.ShellExecuteW(
+                    None, 'open', file_path, None, None, 1
+                )
             else:
-                import subprocess
                 subprocess.Popen(['open', file_path])
         except Exception:
             pass
