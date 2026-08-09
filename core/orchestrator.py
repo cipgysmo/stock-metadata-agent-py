@@ -690,22 +690,28 @@ class BatchOrchestrator:
                     logger.debug(f"Learned new location: {vision.city}, {vision.country}")
 
     def rerun_file(self, file_path: str, vision_analysis: VisionAnalysis,
-                   content_type_override: str = '') -> FileResult:
+                    content_type_override: str = '', progress_callback=None) -> FileResult:
         """Rerun vision and text generation for a single file (used for manual retry)."""
         result = FileResult(file_path=file_path)
         file_info = Scanner(os.path.dirname(file_path))._classify(file_path)
         if not file_info:
             return result
 
+        if progress_callback:
+            progress_callback(5)
         vision_client, text_client, fallback_client = self._get_clients()
         folder_location = self.location_parser.parse(file_info.folder_location)
         context = {'location_hint': folder_location.display_name}
 
         # Rerun vision
+        if progress_callback:
+            progress_callback(10)
         if file_info.file_type == 'image':
             vision = self._analyze_image(file_info, vision_client, context)
         else:
             vision, _ = self._analyze_video(file_info, vision_client, context)
+        if progress_callback:
+            progress_callback(35)
 
         # Build location
         gps_validator = GPSValidator()
@@ -725,6 +731,8 @@ class BatchOrchestrator:
         result.vision_analysis = vision
 
         # Rerun text generation
+        if progress_callback:
+            progress_callback(40)
         generator = MetadataGenerator(text_client, max_tokens=1500, fallback_client=fallback_client)
         date_str = ''
         if gps_info and gps_info.raw_data:
@@ -737,6 +745,8 @@ class BatchOrchestrator:
                                       gps_info=gps_info,
                                       date_string=date_str,
                                       content_type_override=content_type_override or self._content_type_override)
+        if progress_callback:
+            progress_callback(75)
 
         result.title = metadata.title
         result.description = metadata.description
@@ -748,8 +758,12 @@ class BatchOrchestrator:
         result.top_keywords = result.keywords[:10]
 
         # Rerun metadata write
+        if progress_callback:
+            progress_callback(80)
         if result.title and result.description and result.keywords:
             self._write_metadata(file_info, result)
+        if progress_callback:
+            progress_callback(100)
 
         result.success = (
             result.title and

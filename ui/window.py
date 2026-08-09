@@ -706,8 +706,8 @@ class ResultsView(QWidget):
         file_layout.addWidget(file_label, 1)
         rerun_btn = QPushButton()
         rerun_btn.setIcon(self._rerun_icon_svg())
-        rerun_btn.setIconSize(QSize(18, 18))
-        rerun_btn.setFixedSize(22, 22)
+        rerun_btn.setIconSize(QSize(14, 14))
+        rerun_btn.setFixedSize(18, 18)
         rerun_btn.setToolTip("Regenerate vision + text for this file")
         rerun_btn.clicked.connect(lambda checked, r=row: self._on_rerun_row(r))
         file_layout.addWidget(rerun_btn)
@@ -721,7 +721,8 @@ class ResultsView(QWidget):
         from PySide6.QtWidgets import QProgressBar
         stripe_color = '#3b82f6'
         progress_bar = QProgressBar(self._table.viewport())
-        progress_bar.setRange(0, 0)
+        progress_bar.setRange(0, 100)
+        progress_bar.setValue(0)
         progress_bar.setTextVisible(False)
         progress_bar.setFixedHeight(4)
         progress_bar.setStyleSheet(f'''
@@ -730,7 +731,6 @@ class ResultsView(QWidget):
         ''')
         progress_bar.setVisible(False)
         self._row_progress_bars[row] = progress_bar
-        self._update_stripe_pos(row)
 
         title_text = result.title[:80] + ('…' if len(result.title) > 80 else '')
         self._table.setItem(row, 1, QTableWidgetItem(title_text))
@@ -800,6 +800,8 @@ class ResultsView(QWidget):
         progress_bar = self._row_progress_bars.get(row)
         if progress_bar:
             progress_bar.setVisible(True)
+            progress_bar.setValue(0)
+            self._update_stripe_pos(row)
         # Run in background thread
         self._rerun_worker = _RerunWorker(
             self.main_window._orchestrator,
@@ -808,6 +810,7 @@ class ResultsView(QWidget):
             self.main_window._process_panel._options_card.get_content_type_override(),
         )
         self._rerun_worker.finished.connect(lambda r, row=row: self._on_rerun_finished(r, row))
+        self._rerun_worker.progress.connect(lambda p, row=row: self._update_progress(p, row))
         self._rerun_thread = QThread()
         self._rerun_worker.moveToThread(self._rerun_thread)
         self._rerun_thread.started.connect(self._rerun_worker.run)
@@ -876,6 +879,13 @@ class ResultsView(QWidget):
         if rect.isValid():
             progress_bar.move(rect.x(), rect.y() + rect.height() - 4)
             progress_bar.resize(rect.width(), 4)
+
+    def _update_progress(self, value, row):
+        """Update progress bar value and position."""
+        progress_bar = self._row_progress_bars.get(row)
+        if progress_bar:
+            progress_bar.setValue(value)
+            self._update_stripe_pos(row)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -1130,6 +1140,7 @@ class _BatchWorker(QObject):
 class _RerunWorker(QObject):
     """Background worker for rerunning vision + text on a single file."""
     finished = Signal(object)  # FileResult
+    progress = Signal(int)  # 0-100
 
     def __init__(self, orchestrator, file_path, vision_analysis, content_type_override):
         super().__init__()
@@ -1140,6 +1151,7 @@ class _RerunWorker(QObject):
 
     def run(self):
         result = self.orchestrator.rerun_file(
-            self.file_path, self.vision_analysis, self.content_type_override
+            self.file_path, self.vision_analysis, self.content_type_override,
+            progress_callback=self.progress.emit
         )
         self.finished.emit(result)
