@@ -51,6 +51,8 @@ class AIClient:
 
     def chat_completion(self, messages: list[dict], model: str = '',
                         max_tokens: int = 4096, temperature: float = 0.7,
+                        top_p: float = 0.95, top_k: int = 40,
+                        min_p: float = 0.05, repeat_penalty: float = 1.1,
                         stream: bool = False) -> dict[str, Any]:
         """Send a chat completion request with hard timeout.
 
@@ -63,6 +65,10 @@ class AIClient:
             'messages': messages,
             'max_tokens': max_tokens,
             'temperature': temperature,
+            'top_p': top_p,
+            'top_k': top_k,
+            'min_p': min_p,
+            'repeat_penalty': repeat_penalty,
             'stream': stream,
         }
 
