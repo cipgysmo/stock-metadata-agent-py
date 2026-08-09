@@ -1,0 +1,15 @@
+[project]
+name = "stock-metadata-agent"
+version = "0.1.0"
+description = "AI-powered stock photography metadata generator"
+requires-python = ">=3.10"
+
+[project.scripts]
+stock-metadata-agent = "main:main"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[tool.setuptools.packages.find]
+include = ["config", "ui", "core", "ai", "export", "db"]

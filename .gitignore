@@ -1,0 +1,32 @@
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+*.egg-info
+dist/
+build/
+*.egg
+.venv/
+.eggs/
+*.whl
+
+# PyInstaller
+*.spec~
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# App data
+~/.stock-metadata-agent/
+
+# OS
+*.log
+smb:/
+truenas-mount/

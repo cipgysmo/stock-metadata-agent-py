@@ -1,0 +1,37 @@
+name: Build Windows Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: pyinstaller --clean stock-metadata-agent.spec
+
+      - name: Package release
+        run: |
+          Compress-Archive -Path "dist\stock-metadata-agent" -DestinationPath "dist\AI Stock Metadata Agent v0.1.0 (Windows).zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: dist\AI Stock Metadata Agent v0.1.0 (Windows).zip
