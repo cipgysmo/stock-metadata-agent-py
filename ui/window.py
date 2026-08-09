@@ -562,6 +562,8 @@ class ResultsView(QWidget):
         self._table.cellDoubleClicked.connect(self._on_double_click)
         layout.addWidget(self._table, 1)
         self._row_progress_bars = {}
+        self._selected_row = None
+        self._selected_row = None
         self._rerun_busy = {}
         self._rerun_busy = {}
         self._rerun_busy = {}
@@ -726,6 +728,8 @@ class ResultsView(QWidget):
 
         # Thin progress stripe (created on demand during rerun, stored placeholder)
         self._row_progress_bars[row] = None
+        # Track selected row for detail panel update after rerun
+        self._selected_row = None
 
         file_container.setProperty('file_path', result.file_path)
         self._table.setCellWidget(row, 0, file_container)
@@ -816,7 +820,7 @@ class ResultsView(QWidget):
         progress_bar.setVisible(True)
         self._row_progress_bars[row] = progress_bar
         # Position stripe to span full row width
-        self._position_stripe(row)
+        QTimer.singleShot(10, functools.partial(self._position_stripe, row))
         # Run in background thread using QRunnable (Qt-native, safe lifecycle)
         from PySide6.QtCore import QRunnable, QThreadPool
         runnable = _RerunRunnable(
@@ -859,15 +863,13 @@ class ResultsView(QWidget):
                     w.setText(os.path.basename(result.file_path))
         title_text = result.title[:80] + ('…' if len(result.title) > 80 else '')
         self._table.setItem(row, 1, QTableWidgetItem(title_text))
-        # Update detail panel if this row is currently selected
-        selected_items = self._table.selectedItems()
-        if selected_items and selected_items[0].row() == row:
-            self._current_result = result
-            self._detail_name.setText(os.path.basename(result.file_path))
-            self._detail_type.setText(getattr(result, 'content_type', 'Commercial') or 'Commercial')
-            self._detail_category.setText(getattr(result, 'category', '') or '—')
-            self._detail_title.setText(result.title)
-            self._detail_keywords.setText(', '.join(result.keywords))
+        # Always update detail panel if this row was selected
+        self._current_result = result
+        self._detail_name.setText(os.path.basename(result.file_path))
+        self._detail_type.setText(getattr(result, 'content_type', 'Commercial') or 'Commercial')
+        self._detail_category.setText(getattr(result, 'category', '') or '—')
+        self._detail_title.setText(result.title)
+        self._detail_keywords.setText(', '.join(result.keywords))
         # Re-export CSV if it exists
         self._update_csv()
 
