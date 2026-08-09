@@ -338,14 +338,8 @@ class MetadataGenerator:
         for k in raw_kw:
             expanded.extend(str(k).replace('|', ',').split(','))
         keywords = [k.strip().lower() for k in expanded if k.strip().lower()]
-        # Sanitize underscores: split "wind_farm" into "wind" and "farm"
-        sanitized = []
-        for k in keywords:
-            if '_' in k:
-                sanitized.extend(w for w in k.split('_') if w.strip())
-            else:
-                sanitized.append(k)
-        keywords = sanitized
+        # Sanitize underscores: "wind_farm" → "wind farm" (keep as expression)
+        keywords = [k.replace('_', ' ') for k in keywords]
         # Split multi-word keywords into single words (keep proper names intact)
         keywords = self._split_multichword_keywords(keywords)
         keywords = self._deduplicate_keywords(keywords)
