@@ -680,6 +680,33 @@ class ResultsView(QWidget):
         return QIcon(QPixmap.fromImage(img))
 
     @staticmethod
+    def _spinner_icon_svg():
+        from PySide6.QtGui import QPainter
+        from PySide6.QtSvg import QSvgRenderer
+        from PySide6.QtCore import QByteArray
+        stroke = '#3b82f6'
+        svg = (
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{stroke}" '
+            'stroke-width="2" stroke-linecap="round">'
+            '<path d="M12 2v4"/>'
+            '<path d="M12 18v4"/>'
+            '<path d="M4.93 4.93l2.83 2.83"/>'
+            '<path d="M16.24 16.24l2.83 2.83"/>'
+            '<path d="M2 12h4"/>'
+            '<path d="M18 12h4"/>'
+            '<path d="M4.93 19.07l2.83-2.83"/>'
+            '<path d="M16.24 7.76l2.83-2.83"/>'
+            '</svg>'
+        )
+        renderer = QSvgRenderer(QByteArray(svg.encode()))
+        img = QImage(24, 24, QImage.Format.Format_ARGB32)
+        img.fill(0)
+        painter = QPainter(img)
+        renderer.render(painter)
+        painter.end()
+        return QIcon(QPixmap.fromImage(img))
+
+    @staticmethod
     def _copy_icon_svg():
         from PySide6.QtGui import QPainter
         from PySide6.QtSvg import QSvgRenderer
@@ -792,23 +819,16 @@ class ResultsView(QWidget):
         if not vision:
             self._rerun_busy[row] = False
             return
-        # Disable the button and start spinning icon
+        # Disable the button and show spinner icon
         container = self._table.cellWidget(row, 0)
         if container:
             for i in range(container.layout().count()):
                 w = container.layout().itemAt(i).widget()
                 if isinstance(w, QPushButton):
                     w.setEnabled(False)
-                    break  # found the button
-        # Store button ref, row, and timer for spinning animation
-        self._rerun_busy[row] = {'button': w, 'angle': 0}
-        # Start spin timer: rotate icon every 50ms
-        timer = QTimer(self)
-        timer.timeout.connect(lambda: self._spin_rerun_icon(row))
-        timer.start(50)
-        self._row_progress_bars[row] = timer
-        # Render initial rotated icon
-        self._spin_rerun_icon(row)
+                    w.setIcon(self._spinner_icon_svg())
+                    break
+        self._rerun_busy[row] = True
         # Run in background thread using QRunnable (Qt-native, safe lifecycle)
         from PySide6.QtCore import QRunnable, QThreadPool
         runnable = _RerunRunnable(
@@ -826,12 +846,6 @@ class ResultsView(QWidget):
         if not result:
             return
         self._rerun_busy.pop(row, None)
-        # Stop spinning timer
-        timer = self._row_progress_bars.get(row)
-        if isinstance(timer, QTimer):
-            timer.stop()
-            timer.deleteLater()
-            self._row_progress_bars[row] = None
         # Re-enable the button
         container = self._table.cellWidget(row, 0)
         if container:
@@ -839,8 +853,8 @@ class ResultsView(QWidget):
                 w = container.layout().itemAt(i).widget()
                 if isinstance(w, QPushButton):
                     w.setEnabled(True)
-                    w.setText("")
                     w.setIcon(self._rerun_icon_svg())
+                    break
         # Update the result in the list
         self._results[row] = result
         # Update table row - update file name label and title
@@ -879,40 +893,6 @@ class ResultsView(QWidget):
         exporter = CsvExporter()
         csv_path = os.path.join(self.main_window._current_folder, 'metadata_export.csv')
         exporter.export_batch(self._results, csv_path)
-
-    def _spin_rerun_icon(self, row):
-        """Rotate the rerun icon for a spinning animation."""
-        busy = self._rerun_busy.get(row)
-        if not busy:
-            return
-        btn = busy.get('button')
-        if not btn:
-            return
-        busy['angle'] = (busy['angle'] + 45) % 360
-        angle = busy['angle']
-        stroke = '#3b82f6'  # blue for active state
-        svg = (
-            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{stroke}" '
-            'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-            '<path d="M21 2v6h-6"/>'
-            '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>'
-            '<path d="M3 22v-6h6"/>'
-            '<path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>'
-            '</svg>'
-        )
-        from PySide6.QtGui import QPainter
-        from PySide6.QtSvg import QSvgRenderer
-        from PySide6.QtCore import QByteArray
-        renderer = QSvgRenderer(QByteArray(svg.encode()))
-        img = QImage(24, 24, QImage.Format.Format_ARGB32)
-        img.fill(0)
-        painter = QPainter(img)
-        painter.translate(12, 12)
-        painter.rotate(angle)
-        painter.translate(-12, -12)
-        renderer.render(painter)
-        painter.end()
-        btn.setIcon(QIcon(QPixmap.fromImage(img)))
 
     def _update_progress(self, value, row):
         """Update progress bar value."""
