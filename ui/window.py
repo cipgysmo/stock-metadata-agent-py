@@ -558,7 +558,9 @@ class ResultsView(QWidget):
         self._table.setVisible(False)
         self._table.cellDoubleClicked.connect(self._on_double_click)
         layout.addWidget(self._table, 1)
-        self._row_progress_bars = {}  # row -> QProgressBar
+        self._row_progress_bars = {}
+        # Reposition progress stripes on table resize
+        self._table.viewport().installEventFilter(self)
 
         # Detail + preview panel
         self._detail = QFrame()
@@ -696,28 +698,30 @@ class ResultsView(QWidget):
 
         # File name with rerun button in a container
         file_container = QWidget()
-        main_layout = QVBoxLayout(file_container)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
-
-        top_layout = QHBoxLayout()
-        top_layout.setSpacing(6)
+        file_layout = QHBoxLayout(file_container)
+        file_layout.setContentsMargins(0, 0, 0, 0)
+        file_layout.setSpacing(6)
         file_label = QLabel(os.path.basename(result.file_path))
         file_label.setStyleSheet("font-size: 13px;")
-        top_layout.addWidget(file_label, 1)
+        file_layout.addWidget(file_label, 1)
         rerun_btn = QPushButton()
         rerun_btn.setIcon(self._rerun_icon_svg())
-        rerun_btn.setFixedSize(24, 24)
+        rerun_btn.setIconSize(QSize(18, 18))
+        rerun_btn.setFixedSize(22, 22)
         rerun_btn.setToolTip("Regenerate vision + text for this file")
         rerun_btn.clicked.connect(lambda checked, r=row: self._on_rerun_row(r))
-        top_layout.addWidget(rerun_btn)
-        main_layout.addLayout(top_layout)
+        file_layout.addWidget(rerun_btn)
+        file_container.setProperty('file_path', result.file_path)
+        self._table.setCellWidget(row, 0, file_container)
+        hidden_item = QTableWidgetItem("")
+        hidden_item.setData(Qt.UserRole, result.file_path)
+        self._table.setItem(row, 0, hidden_item)
 
-        # Thin progress stripe (4px tall, hidden by default)
+        # Thin progress stripe overlay (4px tall, spans full row width)
         from PySide6.QtWidgets import QProgressBar
         stripe_color = '#3b82f6'
-        progress_bar = QProgressBar()
-        progress_bar.setRange(0, 0)  # indeterminate
+        progress_bar = QProgressBar(self._table.viewport())
+        progress_bar.setRange(0, 0)
         progress_bar.setTextVisible(False)
         progress_bar.setFixedHeight(4)
         progress_bar.setStyleSheet(f'''
@@ -725,24 +729,11 @@ class ResultsView(QWidget):
             QProgressBar::chunk {{ background: {stripe_color}; }}
         ''')
         progress_bar.setVisible(False)
-        main_layout.addWidget(progress_bar)
         self._row_progress_bars[row] = progress_bar
+        self._update_stripe_pos(row)
 
-        # Store file path in the container
-        file_container.setProperty('file_path', result.file_path)
-        # Use a widget for the file column
-        self._table.setCellWidget(row, 0, file_container)
-        # Store the file path in UserRole of a hidden item for double-click handling
-        hidden_item = QTableWidgetItem("")
-        hidden_item.setData(Qt.UserRole, result.file_path)
-        self._table.setItem(row, 0, hidden_item)
-
-        # Title
         title_text = result.title[:80] + ('…' if len(result.title) > 80 else '')
         self._table.setItem(row, 1, QTableWidgetItem(title_text))
-
-        # Set proper row height to fit button + padding
-        self._table.setRowHeight(row, 48)
 
         self._results.append(result)
         self._file_paths.append(result.file_path)
@@ -874,6 +865,23 @@ class ResultsView(QWidget):
         exporter = CsvExporter()
         csv_path = os.path.join(self.main_window._current_folder, 'metadata_export.csv')
         exporter.export_batch(self._results, csv_path)
+
+    def _update_stripe_pos(self, row):
+        """Position the progress stripe to span the full row width."""
+        progress_bar = self._row_progress_bars.get(row)
+        if not progress_bar or not progress_bar.isVisible():
+            return
+        visual_row = self._table.visualRow(row)
+        rect = self._table.visualItemRect(visual_row)
+        if rect.isValid():
+            progress_bar.move(rect.x(), rect.y() + rect.height() - 4)
+            progress_bar.resize(rect.width(), 4)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        # Reposition all visible progress stripes on resize
+        for row in list(self._row_progress_bars.keys()):
+            self._update_stripe_pos(row)
 
     def _on_double_click(self, row, col):
         if col != 0:
