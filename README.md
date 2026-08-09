@@ -1,78 +1,127 @@
 # AI Stock Metadata Agent
 
-Batch-generate and embed professional stock photography metadata using local AI models. Compatible with Shutterstock, Adobe Stock, Getty/iStock, Alamy, and other agencies.
+**Desktop application for automatically generating and embedding stock photography metadata using local AI models.**
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
-[![PySide6](https://img.shields.io/badge/UI-PySide6-41cd52.svg)](https://www.qt.io/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+Process hundreds of images and videos in batch — generating titles, descriptions, and keywords that conform to a universal metadata spec compatible with Shutterstock, Adobe Stock, Getty/iStock, Alamy, and other agencies.
+
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Supported Formats](#supported-formats)
+- [Installation](#installation)
+  - [From Release (Recommended)](#from-release-recommended)
+  - [From Source](#from-source)
+- [Configuration](#configuration)
+  - [Settings Dialog](#settings-dialog)
+  - [Settings File](#settings-file)
+- [Usage](#usage)
+  - [Batch Processing](#batch-processing)
+  - [Batch Options Card](#batch-options-card)
+  - [Results & Detail Panel](#results--detail-panel)
+- [Metadata Specification](#metadata-specification)
+  - [Title & Description](#title--description)
+  - [Keywords](#keywords)
+  - [Content Type Detection](#content-type-detection)
+- [AI Pipeline](#ai-pipeline)
+  - [Vision Analysis](#vision-analysis)
+  - [Text Generation](#text-generation)
+  - [Cloud Fallback](#cloud-fallback)
+- [Architecture](#architecture)
+  - [Project Structure](#project-structure)
+  - [Core Modules](#core-modules)
+  - [Processing Pipeline](#processing-pipeline)
+- [Building from Source](#building-from-source)
+  - [macOS](#macos)
+  - [Windows](#windows)
+  - [Linux](#linux)
+- [Location Memory](#location-memory)
+- [Duplicate Detection](#duplicate-detection)
+- [Quality Validation](#quality-validation)
+- [CSV Export](#csv-export)
+- [Troubleshooting](#troubleshooting)
+- [Changelog](#changelog)
+- [License](#license)
 
 ---
 
 ## Features
 
-- **Batch processing** with parallel workers (1\u201316)
-- **Local AI** \u2013 runs entirely offline via Ollama/OMLX; no cloud API required
-- **Vision analysis** \u2013 subject, location, objects, people, logos, commercial safety
-- **Universal metadata spec** \u2013 titles, descriptions, and keywords tuned for all major agencies
-- **GPS + location memory** \u2013 reads EXIF GPS, reverse-geocodes, stores mappings in SQLite
-- **Duplicate detection** \u2013 perceptual hashing catches identical / near-duplicate images
-- **Quality validation** \u2013 flags title length, keyword count, banned words, duplicates
-- **Content-type override** \u2013 force Editorial or Commercial per batch
-- **Cloud fallback** \u2013 optional GPT-4o-mini when the local text model fails
-- **Multiple output formats** \u2013 embedded EXIF/XMP, sidecar `.xmp`, or both
-- **CSV export** \u2013 optional metadata spreadsheet for review
-- **Desktop UI** \u2013 PySide6 with dark/light theme, thumbnail previews, keyword copy
-- **Cross-platform** \u2013 macOS (Apple Silicon), Windows (x64), Linux
+- **Batch Processing** — Process entire folders of images and videos with configurable parallel workers (1-16)
+- **Local AI Models** — Runs entirely offline using local OLLAMA/OMLX instances; no cloud dependency required
+- **Vision Analysis** — Analyzes images and video frames for subject, location, objects, people, logos, and commercial safety
+- **Smart Metadata** — Generates titles, descriptions, and keywords following a universal spec compatible with all major stock agencies
+- **GPS & Location Parsing** — Reads EXIF GPS data, reverse geocodes via local model, stores in a persistent SQLite memory database
+- **Duplicate Detection** — Identifies duplicate and near-duplicate images using perceptual hashing (imagehash)
+- **Quality Scoring** — Validates metadata quality and flags issues (length, missing fields, banned words, duplicates)
+- **Editorial Detection** — Detects logos, identifiable people, and property that require editorial licensing
+- **Content Type Override** — Force all files in a batch to Editorial or Commercial from the Batch Options card
+- **Cloud Fallback** — Optional OpenAI/GPT-4o-mini fallback if the local text model fails
+- **Multiple Output Formats** — Embedded metadata (EXIF/XMP), sidecar `.xmp` files, or both
+- **CSV Export** — Optional CSV export of all generated metadata for review or bulk import
+- **Desktop UI** — PySide6 application with dark/light theme support, thumbnail previews, and keyword copy buttons
+- **Cross-Platform** — Runs on macOS (Apple Silicon), Windows (x64), and Linux
 
 ---
 
 ## Quick Start
 
 1. **Download** the latest release for your platform from [Releases](https://github.com/cipgysmo/stock-metadata-agent-py/releases)
-2. **Start** a local Ollama/OMLX server with a vision model loaded (e.g. `Qwen2.5-VL-3B-Instruct-8bit`)
-3. **Open** the app \u2192 click the gear icon \u2192 enter your local endpoint
-4. **Select** a folder with photos/videos
-5. **Click Process** \u2014 metadata is generated and embedded
+2. **Start a local OLLAMA/OMLX server** with a vision model (e.g., `Qwen2.5-VL-3B-Instruct-8bit`)
+3. **Open the app**, go to Settings (gear icon), and enter your local model endpoint
+4. **Select a folder** with your photos/videos
+5. **Click Process** — the app will generate and embed metadata into all files
 
 ---
 
 ## Supported Formats
 
-| Type | Extensions |
-|------|------------|
+| Type | Formats |
+|------|---------|
 | **Images** | `.jpg`, `.jpeg`, `.png`, `.tiff`, `.tif` |
 | **Videos** | `.mp4`, `.mov`, `.m4v`, `.avi`, `.mxf`, `.prores`, `.hevc` |
 
 **Metadata embedding:**
-- Images \u2192 EXIF/XMP embedded via bundled exiftool
-- `.mov`, `.mp4`, `.m4v`, `.mxf` \u2192 direct embedding
-- `.avi`, `.prores`, `.hevc` \u2192 sidecar `.xmp` (format doesn\u2019t support direct embedding)
+- Images: EXIF/XMP embedded directly via exiftool
+- Videos (.mov, .mp4, .m4v, .mxf): Direct embedding via exiftool
+- Videos (.avi, .prores, .hevc): Sidecar `.xmp` file (format doesn't support direct embedding)
 
 ---
 
 ## Installation
 
-### From Release
+### From Release (Recommended)
 
-| Platform | Download | Size |
-|----------|----------|------|
+Download from [Releases](https://github.com/cipgysmo/stock-metadata-agent-py/releases):
+
+| Platform | File | Size |
+|----------|------|------|
 | macOS (Apple Silicon) | `*.tar.gz` | ~10 MB |
 | Windows (x64) | `*.zip` | ~154 MB |
 
-**macOS:** Extract \u2192 drag `AI Stock Metadata Agent.app` to Applications.
+**macOS:** Extract the `.tar.gz`, then drag `AI Stock Metadata Agent.app` to Applications.
 
-**Windows:** Extract \u2192 run `AI Stock Metadata Agent.exe`.
+**Windows:** Extract the `.zip`, run `AI Stock Metadata Agent.exe`.
 
-> **macOS first launch:** Right-click \u2192 Open to bypass Gatekeeper, then confirm the dialog.
+> **First launch on macOS:** You may need to right-click → Open, then confirm the security dialog to allow the unsigned app to run.
 
 ### From Source
 
 ```bash
+# Clone the repository
 git clone https://github.com/cipgysmo/stock-metadata-agent-py.git
 cd stock-metadata-agent-py
+
+# Create virtual environment
 python3 -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
+
+# Run directly
 python3 main.py
 ```
 
@@ -82,29 +131,29 @@ python3 main.py
 
 ### Settings Dialog
 
-Open via the **gear icon** (top-right of left panel).
+Click the **gear icon** in the top-right of the left panel to open Settings.
 
-| Section | Setting | Default | Description |
-|---------|---------|---------|-------------|
-| **Vision** | Endpoint | `http://127.0.0.1:8000` | Ollama/OMLX server URL |
-| | API Key | *(empty)* | Key if your server requires one |
-| | Model | `Qwen2.5-VL-3B-Instruct-8bit` | Vision model ID |
-| **Text** | Reuse Vision Model | \u2612 | Use same endpoint/model for text |
-| | Endpoint | *(same as vision)* | Separate text endpoint |
-| | API Key | *(empty)* | Text model API key |
-| | Model | `Qwen2.5-VL-7B-Instruct-4bit` | Text model ID |
-| **Options** | Auto-Learn Location | \u2612 | Store GPS \u2192 location in SQLite |
-| | Workers | `2` | Parallel worker count (1\u201316) |
-| | Output Format | `Embedded` | Embedded / Sidecar / Both |
-| | Duplicate Threshold | `10` | Hash distance for duplicates (1\u201350) |
-| **Cloud Fallback** | Enabled | \u2610 | GPT-4o-mini fallback on local failure |
-| | Endpoint | `https://api.openai.com` | OpenAI-compatible endpoint |
-| | API Key | *(empty)* | OpenAI API key |
-| | Model | `gpt-4o-mini` | Cloud model name |
+| Section | Setting | Description |
+|---------|---------|-------------|
+| **Vision Model** | Endpoint | URL of your local OLLAMA/OMLX server (default: `http://127.0.0.1:8000`) |
+| | API Key | API key if required (leave empty for local) |
+| | Model Name | Vision model ID (e.g., `Qwen2.5-VL-3B-Instruct-8bit`) |
+| **Text Model** | Reuse Vision | Checkbox to use the same endpoint/model for text generation |
+| | Endpoint | Separate text model endpoint |
+| | API Key | Text model API key |
+| | Model Name | Text model ID (e.g., `Qwen2.5-VL-7B-Instruct-4bit`) |
+| **Options** | Auto-Learn Location | Store GPS→location mappings in SQLite database for future reuse |
+| | Workers | Parallel worker count (1-16) |
+| | Output Format | `Embedded` (direct), `Sidecar` (.xmp), or `Both` |
+| | Duplicate Threshold | Perceptual hash distance for duplicate detection (1-50, default: 10) |
+| **Cloud Text Fallback** | Enabled | Enable GPT-4o-mini fallback when local text model fails |
+| | Endpoint | OpenAI API endpoint (default: `https://api.openai.com`) |
+| | API Key | OpenAI API key |
+| | Model | Cloud model name (default: `gpt-4o-mini`) |
 
 ### Settings File
 
-Persisted to `~/.stock-metadata-agent/settings.json`:
+Settings are stored at `~/.stock-metadata-agent/settings.json`:
 
 ```json
 {
@@ -134,95 +183,97 @@ Persisted to `~/.stock-metadata-agent/settings.json`:
 
 ### Batch Processing
 
-1. **Browse** \u2192 select a folder, or paste a path
-2. **Review** \u2192 file count appears below the input
-3. **Process** \u2192 workers process files in parallel
-4. **Progress bar** \u2192 `current/total \u2014 filename`
-5. **Cancel** \u2192 50 ms polling loop for snappy cancellation
+1. **Select Folder** — Click "Browse" or paste a path into the folder input field
+2. **Review File Count** — The app counts supported files (images + videos) in the selected folder
+3. **Click Process** — Batch processing begins with parallel workers
+4. **Monitor Progress** — The bottom progress bar shows `current/total` and current file name
+5. **Cancel** — Click Cancel at any time to stop processing (uses a 50ms polling loop for snappy cancellation)
 
 ### Batch Options Card
 
-Expandable card in the left panel:
+The expandable **Batch Options** card in the left panel provides batch-level settings:
 
-| Option | Values | Effect |
-|--------|--------|--------|
-| **Content Type** | Auto (Detect) / Force Editorial / Force Commercial | Override AI-detected type for the whole batch |
-| **Export CSV after batch** | \u2612 / \u2610 | Toggle CSV export (persists to settings) |
+| Option | Values | Description |
+|--------|--------|-------------|
+| **Content Type** | Auto (Detect), Force Editorial, Force Commercial | Override the AI-detected content type for the entire batch |
+| **Export CSV after batch** | Checked/Unchecked | Toggle CSV export on/off (stored in settings) |
 
 ### Results & Detail Panel
 
-- **Table** \u2013 File + Title columns. Double-click a row to open the file.
-- **Detail** \u2013 Click a row: thumbnail, filename, content type, category, full title, keywords. Copy buttons for title and keywords.
-- **Stats** \u2013 Processed count, total time, per-file average.
+After processing, the right panel shows:
+
+- **Results Table** — Two columns (File, Title). Double-click a file to open it in the default application.
+- **Detail Panel** — Click any row to see:
+  - Thumbnail preview (images and video frames)
+  - Filename, Content Type (Commercial/Editorial), Category
+  - Full title with copy button
+  - All keywords (comma-separated) with copy button
+- **Stats Row** — Processed count, total time, and per-file average time
 
 ---
 
 ## Metadata Specification
 
+The app generates metadata following a universal spec that works across all major stock agencies.
+
 ### Title & Description
 
-- **Identical** text for both fields
-- **180\u2013200 characters** (post-processing enforces)
-- **Flowing sentence**(s) ending with a period
-- **Structure:** primary subject \u2192 action \u2192 setting \u2192 secondary detail
-- **Commercial:** only `.` and `,` \u2014 no dashes, colons, or special characters
-- **Editorial:** dateline format \u2014 `"City, Country \u2013 Month DD, YYYY: [sentence]."`
-- **Banned words:** stunning, amazing, beautiful, breathtaking, incredible, magnificent, spectacular, wonderful, perfect, superb, excellent, outstanding
-- **Location** included only when identifiable features are present
+- **Identical text** for title and description (required by some agencies)
+- **180-200 characters** (target range, enforced by post-processing)
+- **Flowing sentence** format, one or two complete sentences ending with a period
+- **Lead with** primary subject → action → setting → secondary detail
+- **Commercial titles** use only periods (`.`) and commas (`,`) — no dashes, colons, or special characters
+- **Editorial titles** use dateline format: `"City, Country - Month DD, YYYY: [factual sentence]."`
+- **Banned words**: stunning, amazing, beautiful, breathtaking, incredible, magnificent, spectacular, wonderful, perfect, superb, excellent, outstanding
+- **Location** included only when identifiable geographic features are present
+
+**Example (194 chars):**
+> Young woman works on a laptop at a wooden desk in a bright modern home office, surrounded by houseplants and natural light streaming through a large window.
 
 ### Keywords
 
-- **10\u201340 keywords**, ordered by relevance
-- **Priority pinning:** landmark, city, country, main subject \u2192 first
-- **Tier 1:** literal subject terms (what\u2019s in the frame)
-- **Tier 2:** context (location type, time of day, demographics)
-- **Tier 3:** conceptual / emotional
-- **Max 3** per root word, no duplicates, no filler
-- **Banned:** stock photography, stock photo, professional photography, high quality, royalty free, etc.
+- **10-40 keywords**, ordered by priority
+- **Tier 1 (first 15-20)**: Literal subject terms — what is physically in the frame
+- **Tier 2 (next 10-15)**: Context terms — location type, time of day, composition, demographics
+- **Tier 3 (last 5-10)**: Conceptual/emotional terms — what the image represents
+- **Max 3 keywords** sharing the same root word
+- **No duplicates**, no filler
+- **Priority ordering**: Landmark, city, country, and main subject keywords are pinned to the front
+- **Banned keywords**: stock photography, stock photo, professional photography, high quality, royalty free, and other zero-value terms
+- **Pipe characters** (`|`) in LLM output are split into separate keywords
 
-### Content-Type Detection
+### Content Type Detection
 
-1. **Vision model** flags: `has_logos`, `needs_model_release`, `needs_property_release`, `editorial_only`
-2. **Text model** sets `content_type` based on flags
-3. **Override** available via Batch Options card
+The app determines Commercial vs Editorial through a two-stage process:
+
+1. **Vision model** analyzes the image for:
+   - `has_logos` — visible brand logos, trademarks, or company names
+   - `needs_model_release` — clearly identifiable people (faces)
+   - `needs_property_release` — unique private buildings or interiors
+   - `editorial_only` — combined editorial content flag
+
+2. **Text model** receives vision flags and sets `content_type`:
+   - If logos or editorial content detected → `"Editorial"`
+   - Otherwise → `"Commercial"`
+
+**Override:** Use the Batch Options card to force Editorial or Commercial for the entire batch.
 
 ---
 
 ## AI Pipeline
 
-```
-┌─────────────┐     ┌──────────────┐     ┌───────────────┐
-│   Image /   │\u2192    │  Vision Model  │\u2192    │  Text Model   │
-│   Video     │     │  (OMLX local) │     │  (OMLX local) │
-└─────────────┘     └──────────────┘     └───────┬───────┘
-                                                  │
-                                           ┌──────▼───────┐
-                                           │ Post-process  │
-                                           ├───────────────┤
-                                           │ \u2022 Title 180\u2013200  │
-                                           │ \u2022 Dash cleanup  │
-                                           │ \u2022 Keyword order │
-                                           │ \u2022 Banned filter  │
-                                           └───────┬───────┘
-                                                   │
-                                            ┌──────▼───────┐
-                                            │   exiftool    │
-                                            │  (embed XMP)  │
-                                            └──────────────┘
-```
-
 ### Vision Analysis
 
-Returns structured JSON:
+The vision model (e.g., `Qwen2.5-VL-3B-Instruct-8bit`) analyzes each image or video frame and returns structured JSON:
 
 ```json
 {
   "country": "France",
-  "city": "Cancale",
+  "city": "Saint-Michel-en-Greffeuille",
   "landmark": "Mont Saint-Michel",
   "main_subject": "medieval abbey on tidal island",
   "photo_category": "Architecture",
-  "visible_objects": ["abbey", "tower", "bridge", "tide"],
+  "visible_objects": ["abbey", "tower", "bridge", "tide", "sky", "clouds"],
   "has_logos": false,
   "has_people": false,
   "needs_model_release": false,
@@ -233,33 +284,38 @@ Returns structured JSON:
 }
 ```
 
-**Videos:** 3\u20137 key frames extracted via ffmpeg \u2192 best frame analyzed \u2192 camera movement detected.
+**For videos:** The app extracts key frames (3-7 frames), analyzes the best frame, and detects camera movement.
 
 ### Text Generation
 
-Receives vision + location context, outputs:
+The text model receives vision analysis results, GPS data, and location context, then generates:
 
 ```json
 {
   "content_type": "Commercial",
-  "title": "[180-200 char sentence]",
+  "title": "[180-200 char flowing sentence]",
   "description": "[same as title]",
-  "keywords": ["kw1", "kw2", "..."],
-  "top_keywords": ["top1", "...", "top10"],
+  "keywords": ["keyword1", "keyword2", "..."],
+  "top_keywords": ["top1", "top2", "...", "top10"],
   "category": "Architecture"
 }
 ```
 
+**Post-processing:**
+- Title length enforced: truncated at 200 chars if over, expanded with factual clauses if under 180
+- Commercial titles: dashes/hyphens replaced with commas
+- Keywords: banned terms filtered, priority terms pinned to front, duplicates removed, pipes split
+
 ### Cloud Fallback
 
-If the local text model fails (3 retries, exponential backoff 2s/4s):
+When the local text model fails (after 3 retries with exponential backoff), the app optionally falls back to OpenAI's GPT-4o-mini:
 
-1. Local attempt 1 (immediate)
-2. Local attempt 2 (after 2 s)
-3. Local attempt 3 (after 4 s)
-4. **Cloud fallback** (GPT-4o-mini, if enabled)
+1. Local model attempt 1 (immediate)
+2. Local model attempt 2 (after 2s delay)
+3. Local model attempt 3 (after 4s delay)
+4. Cloud fallback (if enabled in Settings)
 
-Same prompt and post-processing pipeline for both paths.
+The fallback uses the same prompt and post-processing pipeline as the local model.
 
 ---
 
@@ -269,68 +325,89 @@ Same prompt and post-processing pipeline for both paths.
 
 ```
 stock-metadata-agent-py/
-\u251c\u2500\u2500 main.py                      # Entry point, stylesheet theming
-\u251c\u2500\u2500 config/
-\u2502   \u251c\u2500\u2500 constants.py             # Limits, banned words, formats
-\u2502   \u2514\u2500\u2500 settings.py              # JSON settings I/O
-\u251c\u2500\u2500 ui/
-\u2502   \u251c\u2500\u2500 window.py                # MainWindow, ProcessPage, ResultsView,
-\u2502   \u2502                             # ExpandableHeader, BatchOptionsCard
-\u2502   \u2514\u2500\u2500 panels/
-\u2502       \u2514\u2500\u2500 settings.py          # Settings dialog
-\u251c\u2500\u2500 core/
-\u2502   \u251c\u2500\u2500 orchestrator.py          # Batch orchestrator, parallel workers
-\u2502   \u251c\u2500\u2500 scanner.py               # File discovery
-\u2502   \u251c\u2500\u2500 duplicate.py             # Perceptual hash detection
-\u2502   \u251c\u2500\u2500 location/
-\u2502   \u2502   \u251c\u2500\u2500 parser.py            # Location string normalization
-\u2502   \u2502   \u2514\u2500\u2500 gps.py               # EXIF GPS reader, reverse geocode
-\u2502   \u251c\u2500\u2500 metadata/
-\u2502   \u2502   \u251c\u2500\u2500 writer.py            # EXIF/XMP embedding (exiftool)
-\u2502   \u2502   \u2514\u2500\u2500 sidecar.py           # .xmp sidecar writing
-\u2502   \u251c\u2500\u2500 quality/
-\u2502   \u2502   \u2514\u2500\u2500 scorer.py            # Quality scoring
-\u2502   \u2514\u2500\u2500 video/
-\u2502       \u251c\u2500\u2500 extractor.py         # Key-frame extraction (ffmpeg)
-\u2502       \u2514\u2500\u2500 movement.py          # Camera movement detection
-\u251c\u2500\u2500 ai/
-\u2502   \u251c\u2500\u2500 client.py                # HTTP client (OMLX + OpenAI)
-\u2502   \u251c\u2500\u2500 vision.py                # Vision prompt, parsing
-\u2502   \u2514\u2500\u2500 generator.py             # Text prompt, generation, post-process
-\u251c\u2500\u2500 export/
-\u2502   \u2514\u2500\u2500 csv.py                   # CSV batch export
-\u251c\u2500\u2500 db/
-\u2502   \u2514\u2500\u2500 memory.py                # SQLite location memory
-\u251c\u2500\u2500 resources/
-\u2502   \u251c\u2500\u2500 exiftool-mac/            # Bundled exiftool (macOS)
-\u2502   \u251c\u2500\u2500 exiftool-win/            # Bundled exiftool (Windows)
-\u2502   \u2514\u2500\u2500 icon.png                 # App icon
-\u251c\u2500\u2500 tests/
-\u2502   \u2514\u2500\u2500 test_all.py              # Unit tests
-\u251c\u2500\u2500 requirements.txt
-\u251c\u2500\u2500 pyproject.toml
-\u251c\u2500\u2500 stock-metadata-agent.spec      # PyInstaller spec
-\u251c\u2500\u2500 build.sh                       # macOS build script
-\u2514\u2500\u2500 build.bat                      # Windows build script
+├── main.py                      # Application entry point, UI theming
+├── config/
+│   ├── constants.py             # Limits, banned words, supported formats
+│   └── settings.py              # Settings file I/O, validation
+├── ui/
+│   ├── window.py                # Main window, batch options, results table, detail panel
+│   └── panels/
+│       └── settings.py          # Settings dialog with model endpoints, workers, cloud fallback
+├── core/
+│   ├── orchestrator.py          # Batch processing orchestrator, parallel workers, abort handling
+│   ├── scanner.py               # File discovery, format validation
+│   ├── duplicate.py             # Perceptual hash duplicate detection (imagehash)
+│   ├── quality/
+│   │   └── scorer.py            # Metadata quality scoring and validation
+│   ├── location/
+│   │   ├── parser.py            # Location string parsing and normalization
+│   │   └── gps.py               # EXIF GPS reading, reverse geocoding
+│   ├── metadata/
+│   │   ├── writer.py            # EXIF/XMP embedding via bundled exiftool
+│   │   └── sidecar.py           # Sidecar .xmp file writing
+│   └── video/
+│       ├── extractor.py         # Key frame extraction (ffmpeg + opencv)
+│       └── movement.py          # Camera movement detection from frames
+├── ai/
+│   ├── client.py                # HTTP client for OLLAMA/OMLX and OpenAI APIs
+│   ├── vision.py                # Vision model prompt, analysis parsing
+│   └── generator.py             # Text model prompt, metadata generation, post-processing
+├── export/
+│   └── csv.py                   # CSV export of batch metadata
+├── db/
+│   └── memory.py                # SQLite location memory database
+├── resources/
+│   ├── exiftool-mac/            # Bundled exiftool binary (macOS)
+│   ├── exiftool-win/            # Bundled exiftool binary (Windows)
+│   └── icon.png                 # Application icon
+├── tests/
+│   └── test_all.py              # Unit tests
+├── requirements.txt             # Python dependencies
+├── pyproject.toml               # Project metadata
+├── stock-metadata-agent.spec    # PyInstaller build configuration
+├── build.sh                     # macOS build script
+└── build.bat                    # Windows build script
 ```
 
-### Processing Pipeline (per file)
+### Core Modules
+
+| Module | Responsibility |
+|--------|---------------|
+| `BatchOrchestrator` | Orchestrates the full pipeline: scan → GPS → vision → text → write. Manages parallel workers, abort signals, and progress callbacks. |
+| `Scanner` | Walks the input directory, filters by supported extensions, returns `MediaFile` list. |
+| `GPSValidator` | Reads EXIF GPS coordinates via exiftool, reverse geocodes to city/country/region. |
+| `VisionAnalyzer` | Sends image/frame to vision model, parses structured JSON response. |
+| `MetadataGenerator` | Sends vision + location context to text model, parses response, applies post-processing. |
+| `MetadataWriter` | Embeds title, description, keywords, content type into files via exiftool. |
+| `XmpSidecarWriter` | Generates `.xmp` sidecar files for formats that don't support direct embedding. |
+| `DuplicateDetector` | Computes perceptual hashes (imagehash) to find duplicate/near-duplicate images. |
+| `QualityValidator` | Scores metadata quality: title length, keyword count, banned words, duplicates. |
+| `LocationMemory` | SQLite database that stores GPS→location mappings for reuse across batches. |
+
+### Processing Pipeline
+
+For each file in a batch:
 
 ```
- 1. SCAN       \u2192 discover file, type (image/video)
- 2. GPS        \u2192 read EXIF GPS, reverse geocode
- 3. VISION     \u2192 analyze with vision model
- 4. DUPLICATE  \u2192 perceptual hash check
- 5. TEXT       \u2192 generate title, description, keywords
- 6. POST-PROC  \u2192 enforce title length, reorder keywords, filter banned
- 7. QUALITY    \u2192 score and flag issues
- 8. WRITE      \u2192 embed EXIF/XMP or write sidecar
+1. SCAN         → Discover file, determine type (image/video)
+2. GPS          → Read EXIF GPS, reverse geocode to location
+3. VISION       → Analyze image/frame with vision model
+   ├─ Image:  send full image
+   └─ Video:  extract key frames → analyze best frame → detect movement
+4. DUPLICATE    → Perceptual hash check against already-processed files
+5. TEXT         → Generate title, description, keywords with text model
+   ├─ Post-process title (length enforcement, dash cleanup)
+   ├─ Reorder keywords (pin landmark/city/country/subject to front)
+   ├─ Filter banned keywords
+   └─ Apply content type override if set
+6. QUALITY      → Validate metadata quality, flag issues
+7. WRITE        → Embed metadata (EXIF/XMP) and/or write sidecar
 ```
 
 **Parallelism:**
-- GPS + Vision run concurrently
-- Text generation rate-limited (3 concurrent via semaphore)
-- Files processed in parallel via `ThreadPoolExecutor` (1\u201316 workers)
+- GPS + Vision run concurrently (both are I/O bound)
+- Text generation is sequential but rate-limited by semaphore (3 concurrent max)
+- Multiple files processed in parallel via `ThreadPoolExecutor` (configurable 1-16 workers)
 
 ---
 
@@ -339,113 +416,155 @@ stock-metadata-agent-py/
 ### macOS
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt pyinstaller
 pyinstaller --clean stock-metadata-agent.spec
-# \u2192 dist/AI Stock Metadata Agent.app
+# Result: dist/AI Stock Metadata Agent.app
 ```
 
 ### Windows
 
 ```batch
-python -m venv .venv && .venv\Scripts\activate
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt pyinstaller
 pyinstaller --clean stock-metadata-agent.spec
-REM \u2192 dist\AI Stock Metadata Agent.exe
+REM Result: dist\AI Stock Metadata Agent.exe
 ```
 
-### GitHub Actions (Windows)
+Or use the included `build.bat` script.
 
-The included `.github/workflows/build-windows.yml` builds on Ubuntu + Wine for cross-compilation. Trigger via Actions \u2192 **Run workflow**.
+### Linux
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt pyinstaller
+pyinstaller --clean stock-metadata-agent.spec
+# Result: dist/AI Stock Metadata Agent
+```
 
 ---
 
 ## Location Memory
 
-When **Auto-Learn Location** is enabled, GPS \u2192 city/country/region mappings are stored in `~/.stock-metadata-agent/location_memory.db` (SQLite). Subsequent batches look up coordinates before calling the vision model, ensuring consistency and speed.
+When **Auto-Learn Location** is enabled, the app stores GPS→location mappings in a SQLite database at `~/.stock-metadata-agent/location_memory.db`.
+
+On subsequent runs, files with matching GPS coordinates are looked up first before calling the vision model, providing:
+- **Consistency** — Same coordinates always map to the same location
+- **Speed** — Skips vision model call for known locations
+- **Fallback** — Vision model still called for new coordinates, results stored
 
 ---
 
 ## Duplicate Detection
 
-Uses perceptual hashing ([imagehash](https://github.com/JohannesBuchner/imagehash)):
-- **Duplicate:** hash distance \u2264 threshold (default 10)
-- **Near-duplicate:** hash distance \u2265 threshold and \u2264 30
+Uses perceptual hashing (via the `imagehash` library) to detect duplicate and near-duplicate images:
 
-Duplicates are still processed but flagged in the quality report.
+- **Duplicate** — Perceptual hash distance ≤ `duplicate_threshold` (default: 10)
+- **Near-duplicate** — Hash distance between threshold and `similar_threshold` (default: 30)
+
+Duplicate files are still processed (metadata is generated), but flagged in the quality report for review.
 
 ---
 
 ## Quality Validation
 
-| Check | Rule |
-|-------|------|
-| Title length | 180\u2013200 characters |
-| Keyword count | 10\u201340 |
-| Keyword duplicates | none |
-| Banned words | not present in title |
-| Empty fields | title, description, keywords required |
+The `QualityValidator` scores each file's metadata and reports issues:
+
+| Check | Description |
+|-------|-------------|
+| Title length | Must be 180-200 characters |
+| Keyword count | Must be 10-40 keywords |
+| Keyword duplicates | No duplicate keywords |
+| Banned words | Titles must not contain banned adjectives |
+| Empty fields | Title, description, and keywords must not be empty |
+
+Files with quality issues are still processed and embedded, but flagged for review.
 
 ---
 
 ## CSV Export
 
-When enabled, produces `metadata_export.csv` in the source folder:
+When **Export CSV after batch** is enabled, the app generates a CSV file (`metadata_export.csv`) in the source folder after batch completion:
 
 | Column | Content |
 |--------|---------|
 | `filename` | Original filename |
-| `title` | Generated title |
-| `keywords` | Comma-separated |
-| `content_type` | Commercial / Editorial |
-| `category` | Category label |
-| `quality_score` | Score (0\u2013100) |
-| `issues` | Flagged issues (if any) |
+| `title` | Generated title/description |
+| `keywords` | Comma-separated keywords |
+| `content_type` | Commercial or Editorial |
+| `category` | Photo category |
+| `quality_score` | Quality validation score |
+| `issues` | Comma-separated quality issues (if any) |
 
 ---
 
 ## Troubleshooting
 
-### \u201cMissing required settings\u201d
+### "Missing required settings" error
 
-Configure vision endpoint + model in Settings before processing.
+The vision and text model endpoints must be configured in Settings before processing. Ensure:
+- `Vision Endpoint` is set (e.g., `http://127.0.0.1:8000`)
+- `Vision Model` is set (e.g., `Qwen2.5-VL-3B-Instruct-8bit`)
+- Either `Reuse Vision Model for Text` is checked, or text model is configured separately
 
-### Vision model returns empty
+### Vision model returns empty response
 
-- Verify server: `curl http://127.0.0.1:8000/v1/models`
-- Ensure the model is loaded and accepting requests
-- Check `image_resize_max` (default 1280)
+- Check that your OLLAMA/OMLX server is running and accessible
+- Verify the model is loaded and accepting requests
+- Test with `curl http://127.0.0.1:8000/v1/models` to confirm the API is responsive
+- Increase `image_resize_max` in settings if the model struggles with image resolution
 
-### Text generation falls back to cloud
+### Text generation fails / falls back to cloud
 
-- The local model may be too small; try 7B+
-- Check server logs for context overflow
-- Ensure `max_tokens` \u2265 1500
+- The local text model may be too small for the task; try a larger model (7B+)
+- Check server logs for context overflow or timeout errors
+- Ensure `max_tokens` in the request is sufficient (default: 1500)
 
 ### exiftool errors on macOS
 
-- First launch: right-click app \u2192 Open to bypass Gatekeeper
-- Or install system-wide: `brew install exiftool`
+- The bundled exiftool should work out of the box
+- If permission errors occur, try right-clicking the app → Open on first launch
+- You can also install exiftool system-wide: `brew install exiftool`
 
 ### Video frame extraction fails
 
-- Install ffmpeg: `brew install ffmpeg` (macOS) or `choco install ffmpeg` (Windows)
+- Requires `ffmpeg` to be installed: `brew install ffmpeg` (macOS) or `choco install ffmpeg` (Windows)
+- Check that the video file is not corrupted and can be played normally
+
+### "File not found" when double-clicking results
+
+This is expected if the source files were moved or renamed after processing. The results table references original file paths.
 
 ---
 
 ## Changelog
 
 ### v0.1.1 (2026-08-09)
-- Batch Options card with Content Type override and CSV toggle
-- Keyword reordering (landmark/city/country/subject pinned front)
-- Commercial title dash cleanup
-- Banned keyword filter expanded
-- Keyword count relaxed to 10\u201340
-- Windows double-click file open fix
-- UI: removed status column, consolidated stats row
+- **Batch Options card**: Expandable panel with batch-level settings
+- **Content Type override**: Force Editorial or Commercial for entire batch
+- **Export CSV toggle**: Moved from Settings to Batch Options card
+- **Keyword reordering**: Landmark, city, country, subject keywords pinned to front
+- **Commercial title cleanup**: Dashes and hyphens replaced with commas
+- **Banned keyword filter**: Removed zero-value keywords from output
+- **Keyword count relaxed**: 10-40 range (was 30-35) to reduce LLM spam padding
+- **Windows double-click fix**: Use `os.startfile()` on Windows
+- **UI cleanup**: Removed status column from table, consolidated stats into single row
 
 ### v0.1.0 (2026-08-09)
 - Initial release
+- Batch processing with parallel workers (1-16)
+- Vision analysis with local OLLAMA models
+- Text metadata generation with local + cloud fallback
+- Universal metadata spec: 180-200 char titles, 10-40 keywords
+- GPS/location parsing with SQLite memory database
+- Duplicate detection with perceptual hashing
+- Quality scoring and validation
+- Embedded metadata via exiftool, sidecar support, CSV export
+- PySide6 desktop UI with dark/light theme
+- macOS (Apple Silicon) and Windows (x64) builds
 
 ---
 
