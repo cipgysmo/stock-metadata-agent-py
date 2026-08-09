@@ -50,7 +50,7 @@ Output ONLY a JSON object with these fields:
 - "content_type": "Commercial" or "Editorial"
 - "title": 180-200 character caption, ends on a complete sentence
 - "description": exact copy of the title field
-- "keywords": ordered list of 30-35 keywords
+- "keywords": ordered list of 10-40 keywords
 - "top_keywords": the 10 most important keywords from the list
 - "category": single best-fit category
 
@@ -64,13 +64,14 @@ Output ONLY a JSON object with these fields:
  - For COMMERCIAL content: the title MUST be a natural flowing sentence. NEVER use dashes (-), hyphens, colons, semicolons, or pipes. Only use periods (.) and commas (,). No special characters (&, %, #, emoji). No ALL CAPS.
  - Banned words: stunning, amazing, beautiful, breathtaking, incredible, magnificent, spectacular, wonderful, perfect, superb, excellent, outstanding. No camera settings, brand names, real names, links.
 
- KEYWORD RULES (30-35, ordered by priority):
+ KEYWORD RULES (10-40, ordered by priority, NO FILLER):
  - Tier 1 (first 15-20): literal subject terms — what is physically in the frame
  - Tier 2 (next 10-15): context terms — location type, time of day, composition, demographics
  - Tier 3 (last 5-10): conceptual/emotional terms — what the image represents
  - Use plain, common single- or two-word terms. Multi-word phrases only as units ("New York City").
  - Max 3 keywords sharing the same root word. No filler.
  - Every keyword must be literally accurate to the image.
+ - QUALITY OVER QUANTITY: Only include keywords that are actually relevant. Better to have 20 accurate keywords than 35 padded with spam. Stop when you've exhausted truly relevant terms.
  - BANNED keywords (NEVER include): stock photography, stock photo, stock images, stock footage, professional photography, professional photo, high quality, high resolution, high definition, royalty free, copyrighted, for sale, commercial use, editorial use, premium quality, creative, concept, visual, design, background, scene, photograph, capture, shot, perspective, composition, tone, aesthetic.
 
 LOCATION RULES:

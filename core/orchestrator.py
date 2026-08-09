@@ -12,7 +12,8 @@ from typing import Callable
 from PySide6.QtCore import QObject, Signal
 
 from config.constants import (
-    IMAGE_EXTENSIONS, SETTINGS_DIR, EMBEDDABLE_VIDEO_FORMATS, SIDECAR_VIDEO_FORMATS
+    IMAGE_EXTENSIONS, SETTINGS_DIR, EMBEDDABLE_VIDEO_FORMATS, SIDECAR_VIDEO_FORMATS,
+    MIN_KEYWORD_COUNT,
 )
 from core.scanner import Scanner, MediaFile
 from core.location.parser import LocationParser, Location
@@ -506,7 +507,7 @@ class BatchOrchestrator:
             result.success = (
                 result.title and
                 result.description and
-                len(result.keywords) >= 30
+                len(result.keywords) >= MIN_KEYWORD_COUNT
             )
 
             elapsed = time.time() - t0
