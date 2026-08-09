@@ -797,30 +797,16 @@ class ResultsView(QWidget):
         if not vision:
             self._rerun_busy[row] = False
             return
-        # Disable the button for this row
+        # Disable the button and show indeterminate progress
         container = self._table.cellWidget(row, 0)
         if container:
             for i in range(container.layout().count()):
                 w = container.layout().itemAt(i).widget()
                 if isinstance(w, QPushButton):
                     w.setEnabled(False)
-                    w.setIcon(QIcon())
-        # Create and show progress stripe on demand
-        from PySide6.QtWidgets import QProgressBar
-        stripe_color = '#3b82f6'
-        progress_bar = QProgressBar(self._table.viewport())
-        progress_bar.setRange(0, 100)
-        progress_bar.setValue(0)
-        progress_bar.setTextVisible(False)
-        progress_bar.setFixedHeight(4)
-        progress_bar.setStyleSheet(f'''
-            QProgressBar {{ border: none; background: transparent; text-align: center; }}
-            QProgressBar::chunk {{ background: {stripe_color}; }}
-        ''')
-        progress_bar.setVisible(True)
-        self._row_progress_bars[row] = progress_bar
-        # Position stripe to span full row width
-        QTimer.singleShot(10, functools.partial(self._position_stripe, row))
+                    w.setText("Processing...")
+        # Store row for cleanup
+        self._rerun_busy[row] = True
         # Run in background thread using QRunnable (Qt-native, safe lifecycle)
         from PySide6.QtCore import QRunnable, QThreadPool
         runnable = _RerunRunnable(
@@ -851,6 +837,7 @@ class ResultsView(QWidget):
                 w = container.layout().itemAt(i).widget()
                 if isinstance(w, QPushButton):
                     w.setEnabled(True)
+                    w.setText("")
                     w.setIcon(self._rerun_icon_svg())
         # Update the result in the list
         self._results[row] = result
@@ -863,13 +850,18 @@ class ResultsView(QWidget):
                     w.setText(os.path.basename(result.file_path))
         title_text = result.title[:80] + ('…' if len(result.title) > 80 else '')
         self._table.setItem(row, 1, QTableWidgetItem(title_text))
-        # Always update detail panel if this row was selected
-        self._current_result = result
-        self._detail_name.setText(os.path.basename(result.file_path))
-        self._detail_type.setText(getattr(result, 'content_type', 'Commercial') or 'Commercial')
-        self._detail_category.setText(getattr(result, 'category', '') or '—')
-        self._detail_title.setText(result.title)
-        self._detail_keywords.setText(', '.join(result.keywords))
+        # Update detail panel if this row is currently selected
+        selected = self._table.selectedItems()
+        is_selected = selected and selected[0].row() == row
+        import logging
+        logging.getLogger(__name__).info(f"Rerun: row={row}, is_selected={is_selected}, title={result.title[:40]}")
+        if is_selected:
+            self._current_result = result
+            self._detail_name.setText(os.path.basename(result.file_path))
+            self._detail_type.setText(getattr(result, 'content_type', 'Commercial') or 'Commercial')
+            self._detail_category.setText(getattr(result, 'category', '') or '—')
+            self._detail_title.setText(result.title)
+            self._detail_keywords.setText(', '.join(result.keywords))
         # Re-export CSV if it exists
         self._update_csv()
 
