@@ -650,9 +650,11 @@ class BatchOrchestrator:
             )
             if success:
                 result.output_file = file_info.path
-            else:
-                # Fallback to sidecar
+            elif file_info.ext in SIDECAR_VIDEO_FORMATS:
+                # Only fallback to sidecar for formats that can't embed
                 self._write_sidecar(file_info, result)
+            else:
+                logger.error(f"exiftool failed for {file_info.path} — no sidecar created")
         else:
             self._write_sidecar(file_info, result)
 
