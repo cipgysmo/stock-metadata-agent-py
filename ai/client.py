@@ -51,10 +51,11 @@ class AIClient:
 
     def chat_completion(self, messages: list[dict], model: str = '',
                         max_tokens: int = 4096, temperature: float = 0.7,
-                        stream: bool = True) -> dict[str, Any]:
-        """Send a chat completion request with streaming and hard timeout.
+                        stream: bool = False) -> dict[str, Any]:
+        """Send a chat completion request with hard timeout.
 
-        Uses streaming by default to avoid OMLX response buffering delays.
+        Uses non-streaming by default for better output quality.
+        Set stream=True for OMLX backends that buffer non-streaming responses.
         """
         url = f"{self.base_url}/v1/chat/completions"
         payload = {
@@ -65,57 +66,64 @@ class AIClient:
             'stream': stream,
         }
 
-        result = [None]
-        error = [None]
+        if stream:
+            # Streaming mode with thread for hard timeout
+            result = [None]
+            error = [None]
 
-        def _do_streaming_request():
-            try:
-                chunks = []
-                with self._session.post(url, json=payload, stream=True,
-                                        timeout=self.timeout) as resp:
-                    resp.raise_for_status()
-                    for line in resp.iter_lines():
-                        if not line:
-                            continue
-                        line_str = line.decode('utf-8')
-                        if line_str.startswith('data: '):
-                            data = line_str[6:]
-                            if data.strip() == '[DONE]':
-                                break
-                            try:
-                                chunk = json.loads(data)
-                                if 'choices' in chunk:
-                                    for choice in chunk['choices']:
-                                        delta = choice.get('delta', {})
-                                        content = delta.get('content', '')
-                                        if content:
-                                            chunks.append(content)
-                            except json.JSONDecodeError:
-                                pass
+            def _do_streaming_request():
+                try:
+                    chunks = []
+                    with self._session.post(url, json=payload, stream=True,
+                                            timeout=self.timeout) as resp:
+                        resp.raise_for_status()
+                        for line in resp.iter_lines():
+                            if not line:
+                                continue
+                            line_str = line.decode('utf-8')
+                            if line_str.startswith('data: '):
+                                data = line_str[6:]
+                                if data.strip() == '[DONE]':
+                                    break
+                                try:
+                                    chunk = json.loads(data)
+                                    if 'choices' in chunk:
+                                        for choice in chunk['choices']:
+                                            delta = choice.get('delta', {})
+                                            content = delta.get('content', '')
+                                            if content:
+                                                chunks.append(content)
+                                except json.JSONDecodeError:
+                                    pass
 
-                result[0] = {
-                    'id': 'stream',
-                    'object': 'chat.completion',
-                    'choices': [{
-                        'message': {'content': ''.join(chunks)},
-                        'finish_reason': 'stop',
-                    }],
-                }
-            except Exception as e:
-                error[0] = e
+                    result[0] = {
+                        'id': 'stream',
+                        'object': 'chat.completion',
+                        'choices': [{
+                            'message': {'content': ''.join(chunks)},
+                            'finish_reason': 'stop',
+                        }],
+                    }
+                except Exception as e:
+                    error[0] = e
 
-        t = threading.Thread(target=_do_streaming_request, daemon=True)
-        t.start()
-        t.join(timeout=self.timeout)
+            t = threading.Thread(target=_do_streaming_request, daemon=True)
+            t.start()
+            t.join(timeout=self.timeout)
 
-        if t.is_alive():
-            logger.error(f"Hard timeout ({self.timeout}s) for {url}")
-            raise requests.exceptions.Timeout(f"Request timed out after {self.timeout}s")
+            if t.is_alive():
+                logger.error(f"Hard timeout ({self.timeout}s) for {url}")
+                raise requests.exceptions.Timeout(f"Request timed out after {self.timeout}s")
 
-        if error[0]:
-            raise error[0]
+            if error[0]:
+                raise error[0]
 
-        return result[0]
+            return result[0]
+        else:
+            # Non-streaming mode
+            with self._session.post(url, json=payload, timeout=self.timeout) as resp:
+                resp.raise_for_status()
+                return resp.json()
 
     def vision_completion(self, messages: list[dict], image_data: bytes,
                           mime_type: str = 'image/jpeg', model: str = '',
