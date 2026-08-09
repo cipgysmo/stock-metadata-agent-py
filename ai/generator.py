@@ -68,7 +68,7 @@ Output ONLY a JSON object with these fields:
  - Tier 1 (first 15-20): literal subject terms — what is physically in the frame
  - Tier 2 (next 10-15): context terms — location type, time of day, composition, demographics
  - Tier 3 (last 5-10): conceptual/emotional terms — what the image represents
- - Use plain, common single- or two-word terms. Multi-word phrases only as units ("New York City").
+ - **SINGLE-WORD FIRST**: Always use single-word keywords whenever possible. "solar panels" should be two keywords: "solar" AND "panels". Only use multi-word keywords for proper names that must stay together ("New York City", "Mont Saint-Michel").
  - Max 3 keywords sharing the same root word. No filler.
  - Every keyword must be literally accurate to the image.
  - QUALITY OVER QUANTITY: Only include keywords that are actually relevant. Better to have 20 accurate keywords than 35 padded with spam. Stop when you've exhausted truly relevant terms.
@@ -338,6 +338,43 @@ class MetadataGenerator:
         for k in raw_kw:
             expanded.extend(str(k).replace('|', ',').split(','))
         keywords = [k.strip().lower() for k in expanded if k.strip().lower()]
+        # Split multi-word keywords into single words (keep proper names intact)
+        keywords = self._split_multichword_keywords(keywords)
+
+    def _split_multichword_keywords(self, keywords: list[str]) -> list[str]:
+        """Split multi-word keywords into single words, preserving proper names."""
+        # Proper names that must stay together
+        proper_names = {
+            'new york city', 'mont saint-michel', 'mont saint michel',
+            'san francisco', 'los angeles', 'san diego', 'new orleans',
+            'rio de janeiro', 'sao paulo', 'buenos aires', 'san jose',
+            'santa fe', 'la paz', 'el salvador', 'costa rica',
+            'punta cana', 'cape town', 'singapore', 'hong kong',
+            'taipei', 'tokyo', 'osaka', 'seoul', 'beijing', 'shanghai',
+            'delhi', 'mumbai', 'bangkok', 'jakarta', 'manila',
+            'dubai', 'abu dhabi', 'doha', 'riyadh', 'istanbul',
+            'amsterdam', 'brussels', 'copenhagen', 'stockholm',
+            'oslo', 'helsinki', 'reykjavik', 'london', 'paris',
+            'berlin', 'rome', 'madrid', 'lisbon', 'vienna', 'prague',
+            'budapest', 'athens', 'zurich', 'zurich',
+            'bohemian paradise', 'swiss alps', 'great barrier reef',
+            'grand canyon', 'yellowstone', 'yosemite',
+            'great wall', 'taj mahal', 'great sphinx',
+            'colosseum', 'eiffel tower', 'big ben',
+            'statue of liberty', 'golden gate bridge',
+        }
+        result: list[str] = []
+        for kw in keywords:
+            kw_lower = kw.lower()
+            if kw_lower in proper_names:
+                result.append(kw)
+            elif ' ' in kw:
+                # Split into individual words
+                words = [w.lower() for w in kw.split() if w.lower() not in ('a', 'an', 'the', 'in', 'on', 'at', 'by', 'for', 'of', 'with', 'from', 'and', 'or')]
+                result.extend(words)
+            else:
+                result.append(kw)
+        return result
         keywords = self._deduplicate_keywords(keywords)
         keywords = [k for k in keywords if k not in BANNED_KEYWORDS]
         keywords = self._fix_keyword_count(keywords)
@@ -407,7 +444,30 @@ class MetadataGenerator:
                     base = candidate
             title = base + "."
 
+        # Sentence-case: only first letter capitalized, rest lowercase
+        title = self._sentence_case(title)
+
         return title
+
+    def _sentence_case(self, title: str) -> str:
+        """Convert title to sentence case: first letter capitalized, all others lowercase."""
+        if not title:
+            return title
+        # Strip trailing period, process, then re-add
+        has_period = title.endswith('.')
+        title = title.rstrip('.')
+        # Split on periods for multi-sentence handling
+        sentences = [s.strip() for s in title.split('.') if s.strip()]
+        result = []
+        for sent in sentences:
+            sent = sent.lower()
+            if sent:
+                sent = sent[0].upper() + sent[1:]
+            result.append(sent)
+        out = '. '.join(result)
+        if has_period:
+            out += '.'
+        return out
 
     def _reorder_keywords(
         self, keywords: list[str], vision: VisionAnalysis, location: Location, gps_info: GPSInfo | None = None,
