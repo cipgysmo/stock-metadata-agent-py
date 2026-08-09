@@ -68,6 +68,7 @@ Output ONLY a JSON object with these fields:
  - Tier 2 (next 10-15): context terms — location type, time of day, composition, demographics
  - Tier 3 (last 5-10): conceptual/emotional terms — what the image represents
   - **SINGLE-WORD FIRST**: Always use single-word keywords whenever possible. "red car" should be two keywords: "red" AND "car". Only use multi-word keywords for proper names that must stay together ("New York City", "Mont Saint-Michel").
+  - **NO SPECIAL CHARACTERS**: Keywords must be plain words only. NEVER use underscores, hyphens, spaces, or any special characters. "wind_farm" is invalid — use two keywords: "wind" AND "farm".
  - Max 3 keywords sharing the same root word. No filler.
  - Every keyword must be literally accurate to the image.
  - QUALITY OVER QUANTITY: Only include keywords that are actually relevant. Better to have 20 accurate keywords than 35 padded with spam. Stop when you've exhausted truly relevant terms.
@@ -337,6 +338,14 @@ class MetadataGenerator:
         for k in raw_kw:
             expanded.extend(str(k).replace('|', ',').split(','))
         keywords = [k.strip().lower() for k in expanded if k.strip().lower()]
+        # Sanitize underscores: split "wind_farm" into "wind" and "farm"
+        sanitized = []
+        for k in keywords:
+            if '_' in k:
+                sanitized.extend(w for w in k.split('_') if w.strip())
+            else:
+                sanitized.append(k)
+        keywords = sanitized
         # Split multi-word keywords into single words (keep proper names intact)
         keywords = self._split_multichword_keywords(keywords)
         keywords = self._deduplicate_keywords(keywords)
