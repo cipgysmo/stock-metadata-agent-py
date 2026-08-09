@@ -99,6 +99,7 @@ class MetadataGenerator:
         movement: str = '',
         gps_info: GPSInfo | None = None,
         date_string: str = '',
+        content_type_override: str = '',
     ) -> GeneratedMetadata:
         """Generate metadata from vision analysis and location context."""
         location_context = self._build_location_context(location, vision, gps_info)
@@ -169,6 +170,8 @@ class MetadataGenerator:
                     # Post-process: enforce 180-200 chars using factual vision data
                     metadata.title = self._enforce_title(metadata.title, vision, location)
                     metadata.description = metadata.title
+                    if content_type_override:
+                        metadata.content_type = content_type_override.title()
                     return metadata
 
                 logger.debug(f"Retry {attempt + 1}/{max_retries}: empty")
@@ -190,6 +193,8 @@ class MetadataGenerator:
                 if metadata.title or metadata.keywords:
                     metadata.title = self._enforce_title(metadata.title, vision, location)
                     metadata.description = metadata.title
+                    if content_type_override:
+                        metadata.content_type = content_type_override.title()
                     logger.info("Cloud fallback succeeded")
                     return metadata
             except Exception as e:

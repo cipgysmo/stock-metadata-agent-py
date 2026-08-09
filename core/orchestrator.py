@@ -109,8 +109,9 @@ class _WorkerContext(threading.local):
 class BatchOrchestrator:
     """Orchestrates the full batch processing pipeline."""
 
-    def __init__(self, settings):
+    def __init__(self, settings, content_type_override: str = ''):
         self.settings = settings
+        self._content_type_override = content_type_override  # '', 'editorial', or 'commercial'
         self._abort = threading.Event()
         self._lock = threading.Lock()
         self._progress_callback: Callable = None
@@ -446,7 +447,8 @@ class BatchOrchestrator:
                 metadata = generator.generate(vision, location,
                                               is_video=(file_info.file_type == 'video'),
                                               gps_info=gps_info,
-                                              date_string=date_str)
+                                              date_string=date_str,
+                                              content_type_override=self._content_type_override)
             finally:
                 self._text_semaphore.release()
             timings['metadata'] = time.time() - t

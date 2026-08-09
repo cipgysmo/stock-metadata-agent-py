@@ -5,8 +5,8 @@ from PySide6.QtWidgets import (
     QSplitter, QStatusBar, QWidget, QFrame, QTableWidget, QTableWidgetItem,
     QLineEdit, QPushButton, QSpinBox, QComboBox, QHeaderView, QDialog, QCheckBox
 )
-from PySide6.QtCore import Qt, QThread, Signal, QTimer, QObject, QSize, QByteArray
-from PySide6.QtGui import QFont, QPixmap, QImage, QIcon
+from PySide6.QtCore import Qt, QThread, Signal, QTimer, QObject, QSize, QByteArray, Property, QRect
+from PySide6.QtGui import QFont, QPixmap, QImage, QIcon, QPainter
 
 from config.settings import Settings
 from core.orchestrator import BatchOrchestrator, BatchReport, FileResult
@@ -167,7 +167,10 @@ class MainWindow(QMainWindow):
         self._progress_bar.setValue(0)
         self._progress_bar.setFormat("Scanning files...")
 
-        self._orchestrator = BatchOrchestrator(self.settings)
+        self._orchestrator = BatchOrchestrator(
+            self.settings,
+            content_type_override=self._process_panel._options_card.get_content_type_override(),
+        )
         self._orchestrator.set_progress_callback(self._on_progress)
         self._orchestrator.set_file_callback(self._on_file_result)
 
@@ -342,6 +345,10 @@ class ProcessPage(QWidget):
         self._folder_info = QLabel("No folder selected")
         self._folder_info.setStyleSheet("font-size: 12px; color: " + ('#a1a1aa' if _is_dark() else '#6b7280') + ";")
         left_layout.addWidget(self._folder_info)
+
+        # ── Batch Options (expandable card) ──
+        self._options_card = _BatchOptionsCard(self)
+        left_layout.addWidget(self._options_card)
 
         left_layout.addStretch()
 
@@ -797,6 +804,116 @@ class ResultsView(QWidget):
 
     def display_report(self, report):
         pass
+
+
+class _ExpandableHeader(QFrame):
+    """Clickable header row for an expandable card."""
+
+    toggled = Signal(bool)
+
+    def __init__(self, text, parent=None):
+        super().__init__(parent)
+        self._expanded = False
+        self._text = text
+        self.setFixedHeight(32)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setStyleSheet("""
+            _ExpandableHeader {
+                background: transparent;
+                border: none;
+            }
+        """)
+
+    @property
+    def expanded(self):
+        return self._expanded
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        text_color = '#e4e4e7' if _is_dark() else '#3f3f46'
+        arrow_color = '#a1a1aa' if _is_dark() else '#71717a'
+
+        # Chevron arrow
+        painter.setPen(arrow_color)
+        painter.setBrush(arrow_color)
+        cx = 14
+        cy = 16
+        if self._expanded:
+            painter.drawLine(cx - 5, cy - 4, cx, cy + 2)
+            painter.drawLine(cx, cy + 2, cx + 5, cy - 4)
+        else:
+            painter.drawLine(cx - 5, cy - 4, cx, cy + 2)
+            painter.drawLine(cx, cy + 2, cx - 5, cy + 8)
+
+        # Text
+        painter.setPen(text_color)
+        font = QFont('system', 12, QFont.Weight.Bold)
+        painter.setFont(font)
+        painter.drawText(QRect(28, 0, self.width(), 32), Qt.AlignVCenter, self._text)
+
+    def mousePressEvent(self, event):
+        self._expanded = not self._expanded
+        self.update()
+        self.toggled.emit(self._expanded)
+        super().mousePressEvent(event)
+
+
+class _BatchOptionsCard(QFrame):
+    """Expandable card with batch-level options."""
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setObjectName('card')
+        self._parent = parent
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        self._header = _ExpandableHeader('Batch Options')
+        self._header.toggled.connect(self._on_toggle)
+        layout.addWidget(self._header)
+
+        # Collapsible content
+        self._content = QFrame()
+        self._content_layout = QVBoxLayout(self._content)
+        self._content_layout.setContentsMargins(16, 8, 16, 14)
+        self._content_layout.setSpacing(12)
+
+        # Content Type Override
+        ct_row = QHBoxLayout()
+        ct_row.setSpacing(10)
+        ct_label = QLabel('Content Type')
+        ct_label.setStyleSheet('font-size: 12px; font-weight: 600;')
+        ct_row.addWidget(ct_label, 0)
+        ct_row.addStretch()
+        self._content_type_combo = QComboBox()
+        self._content_type_combo.addItems(['Auto (Detect)', 'Force Editorial', 'Force Commercial'])
+        self._content_type_combo.setCurrentIndex(0)
+        self._content_type_combo.setStyleSheet('''
+            QComboBox {
+                font-size: 12px;
+                padding: 4px 8px;
+                border-radius: 6px;
+            }
+        ''')
+        ct_row.addWidget(self._content_type_combo, 0)
+        self._content_layout.addLayout(ct_row)
+
+        layout.addWidget(self._content)
+        self._content.setVisible(False)
+
+    def _on_toggle(self):
+        self._content.setVisible(self._header.expanded)
+
+    def get_content_type_override(self) -> str:
+        """Return 'editorial', 'commercial', or '' (auto)."""
+        idx = self._content_type_combo.currentIndex()
+        if idx == 1:
+            return 'editorial'
+        elif idx == 2:
+            return 'commercial'
+        return ''
 
 
 def _is_dark():
