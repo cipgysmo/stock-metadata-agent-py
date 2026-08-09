@@ -804,6 +804,7 @@ class ResultsView(QWidget):
                 w = container.layout().itemAt(i).widget()
                 if isinstance(w, QPushButton):
                     w.setEnabled(False)
+                    w.setIcon(QIcon())
                     w.setText("Processing...")
         # Store row for cleanup
         self._rerun_busy[row] = True
@@ -1173,6 +1174,8 @@ class _RerunWorker(QObject):
 class _RerunRunnable(QRunnable):
     """Qt-native rerun worker using QThreadPool."""
 
+    finished = Signal(object, int)  # result, row
+
     def __init__(self, orchestrator, file_path, vision_analysis, content_type_override,
                  results_view, row):
         super().__init__()
@@ -1182,18 +1185,14 @@ class _RerunRunnable(QRunnable):
         self.content_type_override = content_type_override
         self.results_view = results_view
         self.row = row
+        self.finished.connect(self.results_view._on_rerun_finished)
 
     def run(self):
-        import functools
         try:
             result = self.orchestrator.rerun_file(
                 self.file_path, self.vision_analysis, self.content_type_override
             )
-            # Use QTimer.singleShot to safely dispatch to main thread
-            from PySide6.QtCore import QTimer
-            rv = self.results_view
-            r = self.row
-            QTimer.singleShot(0, functools.partial(rv._on_rerun_finished, result, r))
+            self.finished.emit(result, self.row)
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"Rerun failed: {e}", exc_info=True)
