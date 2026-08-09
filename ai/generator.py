@@ -342,35 +342,12 @@ class MetadataGenerator:
         keywords = self._split_multichword_keywords(keywords)
 
     def _split_multichword_keywords(self, keywords: list[str]) -> list[str]:
-        """Split multi-word keywords into single words, preserving proper names."""
-        # Proper names that must stay together
-        proper_names = {
-            'new york city', 'mont saint-michel', 'mont saint michel',
-            'san francisco', 'los angeles', 'san diego', 'new orleans',
-            'rio de janeiro', 'sao paulo', 'buenos aires', 'san jose',
-            'santa fe', 'la paz', 'el salvador', 'costa rica',
-            'punta cana', 'cape town', 'singapore', 'hong kong',
-            'taipei', 'tokyo', 'osaka', 'seoul', 'beijing', 'shanghai',
-            'delhi', 'mumbai', 'bangkok', 'jakarta', 'manila',
-            'dubai', 'abu dhabi', 'doha', 'riyadh', 'istanbul',
-            'amsterdam', 'brussels', 'copenhagen', 'stockholm',
-            'oslo', 'helsinki', 'reykjavik', 'london', 'paris',
-            'berlin', 'rome', 'madrid', 'lisbon', 'vienna', 'prague',
-            'budapest', 'athens', 'zurich', 'zurich',
-            'bohemian paradise', 'swiss alps', 'great barrier reef',
-            'grand canyon', 'yellowstone', 'yosemite',
-            'great wall', 'taj mahal', 'great sphinx',
-            'colosseum', 'eiffel tower', 'big ben',
-            'statue of liberty', 'golden gate bridge',
-        }
+        """Split multi-word keywords into single words."""
+        stop_words = {'a', 'an', 'the', 'in', 'on', 'at', 'by', 'for', 'of', 'with', 'from', 'and', 'or'}
         result: list[str] = []
         for kw in keywords:
-            kw_lower = kw.lower()
-            if kw_lower in proper_names:
-                result.append(kw)
-            elif ' ' in kw:
-                # Split into individual words
-                words = [w.lower() for w in kw.split() if w.lower() not in ('a', 'an', 'the', 'in', 'on', 'at', 'by', 'for', 'of', 'with', 'from', 'and', 'or')]
+            if ' ' in kw:
+                words = [w.lower() for w in kw.split() if w.lower() not in stop_words]
                 result.extend(words)
             else:
                 result.append(kw)
