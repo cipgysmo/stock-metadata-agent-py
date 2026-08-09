@@ -616,6 +616,9 @@ class BatchOrchestrator:
         unique = []
         for kw in expanded:
             kw_lower = kw.lower().strip()
+            # Sanitize underscores: "wind_farm" → "wind farm"
+            if '_' in kw_lower:
+                kw_lower = kw_lower.replace('_', ' ')
             if kw_lower and kw_lower not in seen:
                 seen.add(kw_lower)
                 unique.append(kw_lower)
@@ -656,6 +659,8 @@ class BatchOrchestrator:
         # If the scene clearly mentions wind turbines, filter out solar keywords
         filtered = []
         for kw in tech_keywords:
+            # Sanitize underscores: "wind_farm" → "wind farm"
+            kw = kw.replace('_', ' ')
             kw_lower = kw.lower()
             skip = False
             for solar_term, wind_terms in CONTRADICTIONS.items():

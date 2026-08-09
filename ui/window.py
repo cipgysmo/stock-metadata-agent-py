@@ -875,7 +875,10 @@ class ResultsView(QWidget):
         if not progress_bar or not progress_bar.isVisible():
             return
         visual_row = self._table.visualRow(row)
-        rect = self._table.visualItemRect(visual_row)
+        item = self._table.item(visual_row, 0)
+        if not item:
+            return
+        rect = self._table.visualItemRect(item)
         if rect.isValid():
             progress_bar.move(rect.x(), rect.y() + rect.height() - 4)
             progress_bar.resize(rect.width(), 4)
