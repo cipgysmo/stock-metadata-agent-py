@@ -391,7 +391,7 @@ class ProcessPage(QWidget):
         stats_layout.setSpacing(24)
 
         self._stat_items = []
-        for label, key in [("Processed", "processed"), ("OK", "ok"), ("Failed", "fail"), ("Total", "total_time"), ("Per File", "avg_time")]:
+        for label, key in [("Processed", "processed"), ("Total", "total_time"), ("Per File", "avg_time")]:
             col = QVBoxLayout()
             lbl = QLabel(label)
             lbl.setStyleSheet("font-size: 11px; font-weight: 600;")
@@ -475,18 +475,10 @@ class ProcessPage(QWidget):
         self._stats_card.setVisible(True)
         total = report.successful + report.failed
         self._stat_items[0][1].setText(str(total))
-        self._stat_items[1][1].setText(str(report.successful))
-        self._stat_items[1][1].setStyleSheet("font-size: 14px; font-weight: 700; color: #22c55e;")
-        fail_text = str(report.failed)
-        if report.cancelled > 0:
-            fail_text += f" + {report.cancelled} skipped"
-        self._stat_items[2][1].setText(fail_text)
-        if report.failed > 0:
-            self._stat_items[2][1].setStyleSheet("font-size: 14px; font-weight: 700; color: #ef4444;")
-        self._stat_items[3][1].setText(report.format_total_time())
+        self._stat_items[1][1].setText(report.format_total_time())
         if report.successful + report.failed > 0:
             m, s = divmod(int(report.avg_time_per_file), 60)
-            self._stat_items[4][1].setText(f"{m}m {s}s" if m else f"{s}s")
+            self._stat_items[2][1].setText(f"{m}m {s}s" if m else f"{s}s")
         self._results_view.display_report(report)
 
 
