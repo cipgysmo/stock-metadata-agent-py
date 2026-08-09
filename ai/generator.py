@@ -114,8 +114,16 @@ class MetadataGenerator:
 
         date_line = f"Date: {date_string}\n" if date_string else ''
 
+        # Editorial hint: controlled by override if set, otherwise by vision detection
         editorial_hint = ''
-        if vision.has_logos or vision.editorial_only:
+        if content_type_override == 'editorial':
+            editorial_hint = (
+                "IMPORTANT: This is EDITORIAL content. Set content_type to 'Editorial'. "
+                "Include date + location in title/description.\n"
+            )
+        elif content_type_override == 'commercial':
+            pass  # Suppress editorial hint even if vision detects it
+        elif vision.has_logos or vision.editorial_only:
             editorial_hint = (
                 "IMPORTANT: Visible logos or editorial content. Set content_type to 'Editorial'. "
                 "Include date + location in title/description.\n"
@@ -170,11 +178,11 @@ class MetadataGenerator:
                 metadata = self._parse_response(content)
 
                 if metadata.title or metadata.keywords:
+                    if content_type_override:
+                        metadata.content_type = content_type_override.title()
                     metadata.title = self._enforce_title(metadata.title, vision, location, metadata.content_type)
                     metadata.description = metadata.title
                     metadata.keywords = self._reorder_keywords(metadata.keywords, vision, location, gps_info)
-                    if content_type_override:
-                        metadata.content_type = content_type_override.title()
                     return metadata
 
                 logger.debug(f"Retry {attempt + 1}/{max_retries}: empty")
@@ -194,11 +202,11 @@ class MetadataGenerator:
                 content = self._extract_content(response)
                 metadata = self._parse_response(content)
                 if metadata.title or metadata.keywords:
+                    if content_type_override:
+                        metadata.content_type = content_type_override.title()
                     metadata.title = self._enforce_title(metadata.title, vision, location, metadata.content_type)
                     metadata.description = metadata.title
                     metadata.keywords = self._reorder_keywords(metadata.keywords, vision, location, gps_info)
-                    if content_type_override:
-                        metadata.content_type = content_type_override.title()
                     logger.info("Cloud fallback succeeded")
                     return metadata
             except Exception as e:
