@@ -1,4 +1,5 @@
 import os
+import sys
 from PySide6.QtWidgets import (
     QMainWindow, QVBoxLayout, QHBoxLayout,
     QProgressBar, QLabel, QFileDialog, QMessageBox,
@@ -959,27 +960,30 @@ class _ExpandableHeader(QFrame):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        text_color = '#e4e4e7' if _is_dark() else '#3f3f46'
-        arrow_color = '#a1a1aa' if _is_dark() else '#71717a'
+        try:
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            text_color = '#e4e4e7' if _is_dark() else '#3f3f46'
+            arrow_color = '#a1a1aa' if _is_dark() else '#71717a'
 
-        # Chevron arrow
-        painter.setPen(arrow_color)
-        painter.setBrush(arrow_color)
-        cx = 14
-        cy = 16
-        if self._expanded:
-            painter.drawLine(cx - 5, cy - 4, cx, cy + 2)
-            painter.drawLine(cx, cy + 2, cx + 5, cy - 4)
-        else:
-            painter.drawLine(cx - 5, cy - 4, cx, cy + 2)
-            painter.drawLine(cx, cy + 2, cx - 5, cy + 8)
+            # Chevron arrow
+            painter.setPen(arrow_color)
+            painter.setBrush(arrow_color)
+            cx = 14
+            cy = 16
+            if self._expanded:
+                painter.drawLine(cx - 5, cy - 4, cx, cy + 2)
+                painter.drawLine(cx, cy + 2, cx + 5, cy - 4)
+            else:
+                painter.drawLine(cx - 5, cy - 4, cx, cy + 2)
+                painter.drawLine(cx, cy + 2, cx - 5, cy + 8)
 
-        # Text
-        painter.setPen(text_color)
-        font = QFont('Helvetica Neue' if sys.platform == 'darwin' else 'Segoe UI', 12, QFont.Weight.Bold)
-        painter.setFont(font)
-        painter.drawText(QRect(28, 0, self.width(), 32), Qt.AlignVCenter, self._text)
+            # Text
+            painter.setPen(text_color)
+            font = QFont('Helvetica Neue' if sys.platform == 'darwin' else 'Segoe UI', 12, QFont.Weight.Bold)
+            painter.setFont(font)
+            painter.drawText(QRect(28, 0, self.width(), 32), Qt.AlignVCenter, self._text)
+        finally:
+            painter.end()
 
     def mousePressEvent(self, event):
         self._expanded = not self._expanded
