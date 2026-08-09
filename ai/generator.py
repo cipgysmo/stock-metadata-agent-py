@@ -179,8 +179,8 @@ class MetadataGenerator:
 
                 if metadata.title or metadata.keywords:
                     if content_type_override:
-                        metadata.content_type = content_type_override.title()
-                    metadata.title = self._enforce_title(metadata.title, vision, location, metadata.content_type)
+                        metadata.content_type = (content_type_override or '').title()
+                    metadata.title = self._enforce_title(metadata.title or '', vision, location, metadata.content_type or 'Commercial')
                     metadata.description = metadata.title
                     metadata.keywords = self._reorder_keywords(metadata.keywords, vision, location, gps_info)
                     return metadata
@@ -188,7 +188,7 @@ class MetadataGenerator:
                 logger.debug(f"Retry {attempt + 1}/{max_retries}: empty")
             except Exception as e:
                 last_error = e
-                logger.debug(f"Attempt {attempt + 1}/{max_retries} failed: {e}")
+                logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {e}", exc_info=True)
 
         # Local model failed — try cloud fallback
         if self.fallback_client:
@@ -201,10 +201,10 @@ class MetadataGenerator:
                 )
                 content = self._extract_content(response)
                 metadata = self._parse_response(content)
-                if metadata.title or metadata.keywords:
+                if metadata and (metadata.title or metadata.keywords):
                     if content_type_override:
-                        metadata.content_type = content_type_override.title()
-                    metadata.title = self._enforce_title(metadata.title, vision, location, metadata.content_type)
+                        metadata.content_type = (content_type_override or '').title()
+                    metadata.title = self._enforce_title(metadata.title or '', vision, location, metadata.content_type or 'Commercial')
                     metadata.description = metadata.title
                     metadata.keywords = self._reorder_keywords(metadata.keywords, vision, location, gps_info)
                     logger.info("Cloud fallback succeeded")
@@ -340,6 +340,16 @@ class MetadataGenerator:
         keywords = [k.strip().lower() for k in expanded if k.strip().lower()]
         # Split multi-word keywords into single words (keep proper names intact)
         keywords = self._split_multichword_keywords(keywords)
+        keywords = self._deduplicate_keywords(keywords)
+        keywords = [k for k in keywords if k not in BANNED_KEYWORDS]
+        keywords = self._fix_keyword_count(keywords)
+        metadata.keywords = keywords
+        metadata.top_keywords = keywords[:TOP_KEYWORD_COUNT]
+
+        metadata.content_type = data.get('content_type', 'Commercial')
+        metadata.category = data.get('category', '').strip()
+
+        return metadata
 
     def _split_multichword_keywords(self, keywords: list[str]) -> list[str]:
         """Split multi-word keywords into single words, keeping the original phrase."""
@@ -351,16 +361,6 @@ class MetadataGenerator:
                 words = [w.lower() for w in kw.split() if w.lower() not in stop_words]
                 result.extend(words)
         return result
-        keywords = self._deduplicate_keywords(keywords)
-        keywords = [k for k in keywords if k not in BANNED_KEYWORDS]
-        keywords = self._fix_keyword_count(keywords)
-        metadata.keywords = keywords
-        metadata.top_keywords = keywords[:TOP_KEYWORD_COUNT]
-
-        metadata.content_type = data.get('content_type', 'Commercial')
-        metadata.category = data.get('category', '').strip()
-
-        return metadata
 
     def _enforce_title(self, title: str, vision: VisionAnalysis, location: Location, content_type: str = 'Commercial') -> str:
         """Ensure 180-200 chars. Truncates over 200 at word boundary. Expands under 180 using factual vision/location data."""
@@ -428,7 +428,7 @@ class MetadataGenerator:
     def _sentence_case(self, title: str) -> str:
         """Convert title to sentence case: first letter capitalized, all others lowercase."""
         if not title:
-            return title
+            return title or ''
         # Strip trailing period, process, then re-add
         has_period = title.endswith('.')
         title = title.rstrip('.')
