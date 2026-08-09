@@ -161,6 +161,39 @@ class MainWindow(QMainWindow):
             self._tabs.setCurrentIndex(1)
             return
 
+        # Health check endpoints before starting
+        from ai.client import AIClient
+        vision_client = AIClient(
+            base_url=self.settings.vision_endpoint,
+            api_key=self.settings.vision_api_key,
+            timeout=10,
+        )
+        text_client = AIClient(
+            base_url=self.settings.text_endpoint,
+            api_key=self.settings.text_api_key,
+            timeout=10,
+        )
+        if not vision_client.health_check():
+            QMessageBox.warning(
+                self, "Connection Error",
+                f"Cannot connect to vision model at:\n{self.settings.vision_endpoint}\n\n"
+                f"Make sure your local AI server (OMLX/Ollama) is running and the endpoint is correct."
+            )
+            vision_client.close()
+            text_client.close()
+            return
+        if not text_client.health_check():
+            QMessageBox.warning(
+                self, "Connection Error",
+                f"Cannot connect to text model at:\n{self.settings.text_endpoint}\n\n"
+                f"Make sure your local AI server (OMLX/Ollama) is running and the endpoint is correct."
+            )
+            vision_client.close()
+            text_client.close()
+            return
+        vision_client.close()
+        text_client.close()
+
         self._is_processing = True
         self._current_folder = folder_path
         # Clear old results and stats for a clean slate
