@@ -559,8 +559,6 @@ class ResultsView(QWidget):
         self._table.cellDoubleClicked.connect(self._on_double_click)
         layout.addWidget(self._table, 1)
         self._row_progress_bars = {}
-        # Reposition progress stripes on table resize
-        self._table.viewport().installEventFilter(self)
 
         # Detail + preview panel
         self._detail = QFrame()
@@ -698,29 +696,28 @@ class ResultsView(QWidget):
 
         # File name with rerun button in a container
         file_container = QWidget()
-        file_layout = QHBoxLayout(file_container)
-        file_layout.setContentsMargins(0, 0, 0, 0)
-        file_layout.setSpacing(6)
+        main_layout = QVBoxLayout(file_container)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        top_layout = QHBoxLayout()
+        top_layout.setSpacing(6)
         file_label = QLabel(os.path.basename(result.file_path))
         file_label.setStyleSheet("font-size: 13px;")
-        file_layout.addWidget(file_label, 1)
+        top_layout.addWidget(file_label, 1)
         rerun_btn = QPushButton()
         rerun_btn.setIcon(self._rerun_icon_svg())
         rerun_btn.setIconSize(QSize(12, 12))
         rerun_btn.setFixedSize(16, 16)
         rerun_btn.setToolTip("Regenerate vision + text for this file")
         rerun_btn.clicked.connect(lambda checked, r=row: self._on_rerun_row(r))
-        file_layout.addWidget(rerun_btn)
-        file_container.setProperty('file_path', result.file_path)
-        self._table.setCellWidget(row, 0, file_container)
-        hidden_item = QTableWidgetItem("")
-        hidden_item.setData(Qt.UserRole, result.file_path)
-        self._table.setItem(row, 0, hidden_item)
+        top_layout.addWidget(rerun_btn)
+        main_layout.addLayout(top_layout)
 
-        # Thin progress stripe overlay (4px tall, spans full row width)
+        # Thin progress stripe (4px tall, at bottom of container, hidden by default)
         from PySide6.QtWidgets import QProgressBar
         stripe_color = '#3b82f6'
-        progress_bar = QProgressBar(self._table.viewport())
+        progress_bar = QProgressBar()
         progress_bar.setRange(0, 100)
         progress_bar.setValue(0)
         progress_bar.setTextVisible(False)
@@ -730,7 +727,14 @@ class ResultsView(QWidget):
             QProgressBar::chunk {{ background: {stripe_color}; }}
         ''')
         progress_bar.setVisible(False)
+        main_layout.addWidget(progress_bar)
         self._row_progress_bars[row] = progress_bar
+
+        file_container.setProperty('file_path', result.file_path)
+        self._table.setCellWidget(row, 0, file_container)
+        hidden_item = QTableWidgetItem("")
+        hidden_item.setData(Qt.UserRole, result.file_path)
+        self._table.setItem(row, 0, hidden_item)
 
         title_text = result.title[:80] + ('…' if len(result.title) > 80 else '')
         self._table.setItem(row, 1, QTableWidgetItem(title_text))
@@ -801,7 +805,6 @@ class ResultsView(QWidget):
         if progress_bar:
             progress_bar.setVisible(True)
             progress_bar.setValue(0)
-            self._update_stripe_pos(row)
         # Run in background thread
         self._rerun_worker = _RerunWorker(
             self.main_window._orchestrator,
@@ -869,32 +872,11 @@ class ResultsView(QWidget):
         csv_path = os.path.join(self.main_window._current_folder, 'metadata_export.csv')
         exporter.export_batch(self._results, csv_path)
 
-    def _update_stripe_pos(self, row):
-        """Position the progress stripe to span the full row width."""
-        progress_bar = self._row_progress_bars.get(row)
-        if not progress_bar or not progress_bar.isVisible():
-            return
-        visual_row = self._table.visualRow(row)
-        item = self._table.item(visual_row, 0)
-        if not item:
-            return
-        rect = self._table.visualItemRect(item)
-        if rect.isValid():
-            progress_bar.move(rect.x(), rect.y() + rect.height() - 4)
-            progress_bar.resize(rect.width(), 4)
-
     def _update_progress(self, value, row):
-        """Update progress bar value and position."""
+        """Update progress bar value."""
         progress_bar = self._row_progress_bars.get(row)
         if progress_bar:
             progress_bar.setValue(value)
-            self._update_stripe_pos(row)
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        # Reposition all visible progress stripes on resize
-        for row in list(self._row_progress_bars.keys()):
-            self._update_stripe_pos(row)
 
     def _on_double_click(self, row, col):
         if col != 0:
