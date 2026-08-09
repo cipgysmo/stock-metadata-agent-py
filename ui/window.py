@@ -233,7 +233,7 @@ class MainWindow(QMainWindow):
         self._process_panel.display_report(report)
 
         # CSV export
-        if self.settings.get('export_csv', True) and report.successful > 0:
+        if self._process_panel._options_card.get_export_csv() and report.successful > 0:
             exporter = CsvExporter()
             csv_dir = os.path.dirname(report.results[0].file_path) if report.results else '.'
             csv_path = os.path.join(csv_dir, 'metadata_export.csv')
@@ -900,11 +900,20 @@ class _BatchOptionsCard(QFrame):
         ct_row.addWidget(self._content_type_combo, 0)
         self._content_layout.addLayout(ct_row)
 
+        # Export CSV checkbox
+        self._export_csv_cb = QCheckBox("Export CSV after batch")
+        self._export_csv_cb.setChecked(True)
+        self._export_csv_cb.setStyleSheet('font-size: 12px;')
+        self._content_layout.addWidget(self._export_csv_cb)
+
         layout.addWidget(self._content)
         self._content.setVisible(False)
 
     def _on_toggle(self):
         self._content.setVisible(self._header.expanded)
+
+    def get_export_csv(self) -> bool:
+        return self._export_csv_cb.isChecked()
 
     def get_content_type_override(self) -> str:
         """Return 'editorial', 'commercial', or '' (auto)."""

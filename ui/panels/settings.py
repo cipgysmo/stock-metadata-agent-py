@@ -282,11 +282,6 @@ class SettingsPanel(QWidget):
         row.addWidget(self._format_combo)
         fields.append(row)
 
-        # Export CSV
-        self._export_csv_cb = QCheckBox("Export CSV after batch")
-        self._export_csv_cb.setChecked(True)
-        fields.append(self._export_csv_cb)
-
         # Duplicate threshold
         row = QHBoxLayout()
         row.addWidget(QLabel("Duplicate Threshold Distance"), 0)
@@ -396,7 +391,6 @@ class SettingsPanel(QWidget):
         self._workers_spin.setText(str(self.settings.max_workers))
         fmt = self.settings.get('output_format', 'embedded')
         self._format_combo.setCurrentIndex({'embedded': 0, 'sidecar': 1, 'both': 2}.get(fmt, 0))
-        self._export_csv_cb.setChecked(self.settings.get('export_csv', True))
 
         # Cloud text fallback
         self._cloud_text_cb.setChecked(self.settings.get('cloud_text_enabled', False))
@@ -435,7 +429,6 @@ class SettingsPanel(QWidget):
             pass
         fmt_map = {0: 'embedded', 1: 'sidecar', 2: 'both'}
         self.settings.set('output_format', fmt_map.get(self._format_combo.currentIndex(), 'embedded'))
-        self.settings.set('export_csv', self._export_csv_cb.isChecked())
 
         # Cloud text fallback
         self.settings.set('cloud_text_enabled', self._cloud_text_cb.isChecked())
