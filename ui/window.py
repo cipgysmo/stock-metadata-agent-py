@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QSplitter, QStatusBar, QWidget, QFrame, QTableWidget, QTableWidgetItem,
     QLineEdit, QPushButton, QSpinBox, QComboBox, QHeaderView, QDialog, QCheckBox
 )
-from PySide6.QtCore import Qt, QThread, Signal, QTimer, QObject, QSize, QByteArray, Property, QRect, QRunnable, QThreadPool, QRunnable, QThreadPool, QRunnable, QThreadPool
+from PySide6.QtCore import Qt, QThread, Signal, QTimer, QObject, QSize, QByteArray, Property, QRect, QRunnable, QThreadPool
 from PySide6.QtGui import QFont, QPixmap, QImage, QIcon, QPainter
 
 from config.settings import Settings
@@ -726,11 +726,6 @@ class ResultsView(QWidget):
         top_layout.addWidget(rerun_btn)
         main_layout.addLayout(top_layout)
 
-        # Thin progress stripe (created on demand during rerun, stored placeholder)
-        self._row_progress_bars[row] = None
-        # Track selected row for detail panel update after rerun
-        self._selected_row = None
-
         file_container.setProperty('file_path', result.file_path)
         self._table.setCellWidget(row, 0, file_container)
         hidden_item = QTableWidgetItem("")
@@ -797,17 +792,23 @@ class ResultsView(QWidget):
         if not vision:
             self._rerun_busy[row] = False
             return
-        # Disable the button and show indeterminate progress
+        # Disable the button and start spinning icon
         container = self._table.cellWidget(row, 0)
         if container:
             for i in range(container.layout().count()):
                 w = container.layout().itemAt(i).widget()
                 if isinstance(w, QPushButton):
                     w.setEnabled(False)
-                    w.setIcon(QIcon())
-                    w.setText("Processing...")
-        # Store row for cleanup
-        self._rerun_busy[row] = True
+                    break  # found the button
+        # Store button ref, row, and timer for spinning animation
+        self._rerun_busy[row] = {'button': w, 'angle': 0}
+        # Start spin timer: rotate icon every 50ms
+        timer = QTimer(self)
+        timer.timeout.connect(lambda: self._spin_rerun_icon(row))
+        timer.start(50)
+        self._row_progress_bars[row] = timer
+        # Render initial rotated icon
+        self._spin_rerun_icon(row)
         # Run in background thread using QRunnable (Qt-native, safe lifecycle)
         from PySide6.QtCore import QRunnable, QThreadPool
         runnable = _RerunRunnable(
@@ -825,11 +826,11 @@ class ResultsView(QWidget):
         if not result:
             return
         self._rerun_busy.pop(row, None)
-        # Hide and delete progress stripe
-        progress_bar = self._row_progress_bars.get(row)
-        if progress_bar:
-            progress_bar.setVisible(False)
-            progress_bar.deleteLater()
+        # Stop spinning timer
+        timer = self._row_progress_bars.get(row)
+        if isinstance(timer, QTimer):
+            timer.stop()
+            timer.deleteLater()
             self._row_progress_bars[row] = None
         # Re-enable the button
         container = self._table.cellWidget(row, 0)
@@ -879,33 +880,45 @@ class ResultsView(QWidget):
         csv_path = os.path.join(self.main_window._current_folder, 'metadata_export.csv')
         exporter.export_batch(self._results, csv_path)
 
-    def _position_stripe(self, row):
-        """Position progress stripe to span full row width."""
-        progress_bar = self._row_progress_bars.get(row)
-        if not progress_bar:
+    def _spin_rerun_icon(self, row):
+        """Rotate the rerun icon for a spinning animation."""
+        busy = self._rerun_busy.get(row)
+        if not busy:
             return
-        visual_row = self._table.visualRow(row)
-        if visual_row < 0 or visual_row >= self._table.rowCount():
+        btn = busy.get('button')
+        if not btn:
             return
-        # Get the row rect from the table
-        item = self._table.item(visual_row, 0)
-        if not item:
-            return
-        row_rect = self._table.visualItemRect(item)
-        if not row_rect.isValid():
-            return
-        # Position the stripe at the bottom of the row, spanning full viewport width
-        progress_bar.setParent(self._table.viewport())
-        progress_bar.move(row_rect.left(), row_rect.bottom() - 4)
-        progress_bar.resize(self._table.viewport().width(), 4)
+        busy['angle'] = (busy['angle'] + 45) % 360
+        angle = busy['angle']
+        stroke = '#3b82f6'  # blue for active state
+        svg = (
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{stroke}" '
+            'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+            '<path d="M21 2v6h-6"/>'
+            '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>'
+            '<path d="M3 22v-6h6"/>'
+            '<path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>'
+            '</svg>'
+        )
+        from PySide6.QtGui import QPainter
+        from PySide6.QtSvg import QSvgRenderer
+        from PySide6.QtCore import QByteArray
+        renderer = QSvgRenderer(QByteArray(svg.encode()))
+        img = QImage(24, 24, QImage.Format.Format_ARGB32)
+        img.fill(0)
+        painter = QPainter(img)
+        painter.translate(12, 12)
+        painter.rotate(angle)
+        painter.translate(-12, -12)
+        renderer.render(painter)
+        painter.end()
+        btn.setIcon(QIcon(QPixmap.fromImage(img)))
 
     def _update_progress(self, value, row):
-        """Update progress bar value and reposition."""
+        """Update progress bar value."""
         progress_bar = self._row_progress_bars.get(row)
         if progress_bar:
             progress_bar.setValue(value)
-            if progress_bar.isVisible():
-                self._position_stripe(row)
 
     def _on_double_click(self, row, col):
         if col != 0:
