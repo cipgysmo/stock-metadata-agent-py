@@ -298,11 +298,11 @@ class BatchOrchestrator:
         if report.cancelled > 0:
             logger.info(f"Batch cancelled: {report.successful} successful, {report.failed} failed, "
                         f"{report.cancelled} skipped, "
-                        f"total: {report.total_time:.1f}s ({report.avg_time_per_file:.1f}s/file)")
+                        f"total: {report.total_time:.1f}s ({round(report.avg_time_per_file)}s/file)")
         else:
             logger.info(f"Batch complete: {report.successful}/{report.total_files} successful, "
                         f"avg quality: {report.average_quality:.0f}, "
-                        f"total: {report.total_time:.1f}s ({report.avg_time_per_file:.1f}s/file)")
+                        f"total: {report.total_time:.1f}s ({round(report.avg_time_per_file)}s/file)")
 
         return report
 

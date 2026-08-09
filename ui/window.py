@@ -487,7 +487,7 @@ class ProcessPage(QWidget):
         self._stat_items[0][1].setText(str(total))
         self._stat_items[1][1].setText(report.format_total_time())
         if report.successful + report.failed > 0:
-            m, s = divmod(int(report.avg_time_per_file), 60)
+            m, s = divmod(round(report.avg_time_per_file), 60)
             self._stat_items[2][1].setText(f"{m}m {s}s" if m else f"{s}s")
         self._results_view.display_report(report)
 
