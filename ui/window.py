@@ -724,22 +724,8 @@ class ResultsView(QWidget):
         top_layout.addWidget(rerun_btn)
         main_layout.addLayout(top_layout)
 
-        # Thin progress stripe (4px tall, spans full row width)
-        from PySide6.QtWidgets import QProgressBar
-        stripe_color = '#3b82f6'
-        progress_bar = QProgressBar(self._table.viewport())
-        progress_bar.setRange(0, 100)
-        progress_bar.setValue(0)
-        progress_bar.setTextVisible(False)
-        progress_bar.setFixedHeight(4)
-        progress_bar.setStyleSheet(f'''
-            QProgressBar {{ border: none; background: transparent; text-align: center; }}
-            QProgressBar::chunk {{ background: {stripe_color}; }}
-        ''')
-        progress_bar.setVisible(False)
-        self._row_progress_bars[row] = progress_bar
-        # Position stripe to span full row width after table layout settles
-        QTimer.singleShot(50, functools.partial(self._position_stripe, row))
+        # Thin progress stripe (created on demand during rerun, stored placeholder)
+        self._row_progress_bars[row] = None
 
         file_container.setProperty('file_path', result.file_path)
         self._table.setCellWidget(row, 0, file_container)
@@ -815,12 +801,22 @@ class ResultsView(QWidget):
                 if isinstance(w, QPushButton):
                     w.setEnabled(False)
                     w.setIcon(QIcon())
-        # Show progress stripe
-        progress_bar = self._row_progress_bars.get(row)
-        if progress_bar:
-            progress_bar.setVisible(True)
-            progress_bar.setValue(0)
-            self._position_stripe(row)
+        # Create and show progress stripe on demand
+        from PySide6.QtWidgets import QProgressBar
+        stripe_color = '#3b82f6'
+        progress_bar = QProgressBar(self._table.viewport())
+        progress_bar.setRange(0, 100)
+        progress_bar.setValue(0)
+        progress_bar.setTextVisible(False)
+        progress_bar.setFixedHeight(4)
+        progress_bar.setStyleSheet(f'''
+            QProgressBar {{ border: none; background: transparent; text-align: center; }}
+            QProgressBar::chunk {{ background: {stripe_color}; }}
+        ''')
+        progress_bar.setVisible(True)
+        self._row_progress_bars[row] = progress_bar
+        # Position stripe to span full row width
+        self._position_stripe(row)
         # Run in background thread using QRunnable (Qt-native, safe lifecycle)
         from PySide6.QtCore import QRunnable, QThreadPool
         runnable = _RerunRunnable(
@@ -838,10 +834,12 @@ class ResultsView(QWidget):
         if not result:
             return
         self._rerun_busy.pop(row, None)
-        # Hide progress stripe
+        # Hide and delete progress stripe
         progress_bar = self._row_progress_bars.get(row)
         if progress_bar:
             progress_bar.setVisible(False)
+            progress_bar.deleteLater()
+            self._row_progress_bars[row] = None
         # Re-enable the button
         container = self._table.cellWidget(row, 0)
         if container:
@@ -911,10 +909,6 @@ class ResultsView(QWidget):
         progress_bar = self._row_progress_bars.get(row)
         if progress_bar:
             progress_bar.setValue(value)
-            if progress_bar.isVisible():
-                self._position_stripe(row)
-            if progress_bar.isVisible():
-                self._position_stripe(row)
             if progress_bar.isVisible():
                 self._position_stripe(row)
 
