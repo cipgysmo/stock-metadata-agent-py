@@ -861,8 +861,9 @@ class ResultsView(QWidget):
                     w.setText(os.path.basename(result.file_path))
         title_text = result.title[:80] + ('…' if len(result.title) > 80 else '')
         self._table.setItem(row, 1, QTableWidgetItem(title_text))
-        # Update detail panel if this file is selected
-        if self._current_result and self._current_result.file_path == result.file_path:
+        # Update detail panel if this row is currently selected
+        selected_items = self._table.selectedItems()
+        if selected_items and selected_items[0].row() == row:
             self._current_result = result
             self._detail_name.setText(os.path.basename(result.file_path))
             self._detail_type.setText(getattr(result, 'content_type', 'Commercial') or 'Commercial')
