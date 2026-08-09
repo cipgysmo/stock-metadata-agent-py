@@ -40,6 +40,15 @@ BANNED_WORDS = {
     'jaw-dropping', 'mind-blowing', 'breathtaking', 'jaw-dropping',
 }
 
+# Banned keywords (zero value on stock sites)
+BANNED_KEYWORDS = {
+    'stock photography', 'stock photo', 'stock images', 'stock image',
+    'stock footage', 'professional photography', 'professional photo',
+    'high quality', 'high resolution', 'high definition',
+    'royalty free', 'copyrighted', 'for sale', 'commercial use',
+    'editorial use', 'premium quality',
+}
+
 # Photo categories for classification
 PHOTO_CATEGORIES = [
     'Aerial', 'Landscape', 'Cityscape', 'Seascape', 'Architecture',

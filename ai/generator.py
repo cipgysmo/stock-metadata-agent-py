@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from ai.client import AIClient
 from ai.vision import VisionAnalysis
 from config.constants import (
-    BANNED_WORDS,
+    BANNED_WORDS, BANNED_KEYWORDS,
     MAX_KEYWORD_COUNT,
     MAX_TITLE_LENGTH,
     MIN_KEYWORD_COUNT,
@@ -54,22 +54,24 @@ Output ONLY a JSON object with these fields:
 - "top_keywords": the 10 most important keywords from the list
 - "category": single best-fit category
 
-TITLE/DESCRIPTION RULES (180-200 chars, SAME text for both):
-- Write one or two complete sentences. Must end on a period. Never truncate mid-sentence.
-- Length must be between 180 and 200 characters. Check carefully.
-- Lead with primary subject and action, then setting, then secondary detail or concept.
-- Example (194 chars): "Young woman works on a laptop at a wooden desk in a bright modern home office, surrounded by houseplants and natural light streaming through a large window."
-- Do NOT repeat the same phrase just to reach the character count. Every added clause must contribute real, accurate information.
-- If editorial, lead with dateline: "City, Country - Month DD, YYYY: [factual sentence expanded to length]."
-- Banned words: stunning, amazing, beautiful, breathtaking, incredible, magnificent, spectacular, wonderful, perfect, superb, excellent, outstanding. No camera settings, brand names, real names, links, special characters (&, %, #, emoji), ALL CAPS.
+ TITLE/DESCRIPTION RULES (180-200 chars, SAME text for both):
+ - Write one or two complete sentences. Must end on a period. Never truncate mid-sentence.
+ - Length must be between 180 and 200 characters. Check carefully.
+ - Lead with primary subject and action, then setting, then secondary detail or concept.
+ - Example (194 chars): "Young woman works on a laptop at a wooden desk in a bright modern home office, surrounded by houseplants and natural light streaming through a large window."
+ - Do NOT repeat the same phrase just to reach the character count. Every added clause must contribute real, accurate information.
+ - If editorial, lead with dateline: "City, Country - Month DD, YYYY: [factual sentence expanded to length]."
+ - For COMMERCIAL content: the title MUST be a natural flowing sentence. NEVER use dashes (-), hyphens, colons, semicolons, or pipes. Only use periods (.) and commas (,). No special characters (&, %, #, emoji). No ALL CAPS.
+ - Banned words: stunning, amazing, beautiful, breathtaking, incredible, magnificent, spectacular, wonderful, perfect, superb, excellent, outstanding. No camera settings, brand names, real names, links.
 
-KEYWORD RULES (30-35, ordered by priority):
-- Tier 1 (first 15-20): literal subject terms — what is physically in the frame
-- Tier 2 (next 10-15): context terms — location type, time of day, composition, demographics
-- Tier 3 (last 5-10): conceptual/emotional terms — what the image represents
-- Use plain, common single- or two-word terms. Multi-word phrases only as units ("New York City").
-- Max 3 keywords sharing the same root word. No filler.
-- Every keyword must be literally accurate to the image.
+ KEYWORD RULES (30-35, ordered by priority):
+ - Tier 1 (first 15-20): literal subject terms — what is physically in the frame
+ - Tier 2 (next 10-15): context terms — location type, time of day, composition, demographics
+ - Tier 3 (last 5-10): conceptual/emotional terms — what the image represents
+ - Use plain, common single- or two-word terms. Multi-word phrases only as units ("New York City").
+ - Max 3 keywords sharing the same root word. No filler.
+ - Every keyword must be literally accurate to the image.
+ - BANNED keywords (NEVER include): stock photography, stock photo, stock images, stock footage, professional photography, professional photo, high quality, high resolution, high definition, royalty free, copyrighted, for sale, commercial use, editorial use, premium quality.
 
 LOCATION RULES:
 - If the scene has identifiable geographic features (landmark, landscape), include location.
@@ -167,7 +169,7 @@ class MetadataGenerator:
                 metadata = self._parse_response(content)
 
                 if metadata.title or metadata.keywords:
-                    metadata.title = self._enforce_title(metadata.title, vision, location)
+                    metadata.title = self._enforce_title(metadata.title, vision, location, metadata.content_type)
                     metadata.description = metadata.title
                     metadata.keywords = self._reorder_keywords(metadata.keywords, vision, location, gps_info)
                     if content_type_override:
@@ -191,7 +193,7 @@ class MetadataGenerator:
                 content = self._extract_content(response)
                 metadata = self._parse_response(content)
                 if metadata.title or metadata.keywords:
-                    metadata.title = self._enforce_title(metadata.title, vision, location)
+                    metadata.title = self._enforce_title(metadata.title, vision, location, metadata.content_type)
                     metadata.description = metadata.title
                     metadata.keywords = self._reorder_keywords(metadata.keywords, vision, location, gps_info)
                     if content_type_override:
@@ -328,6 +330,7 @@ class MetadataGenerator:
             expanded.extend(str(k).replace('|', ',').split(','))
         keywords = [k.strip().lower() for k in expanded if k.strip().lower()]
         keywords = self._deduplicate_keywords(keywords)
+        keywords = [k for k in keywords if k not in BANNED_KEYWORDS]
         keywords = self._fix_keyword_count(keywords)
         metadata.keywords = keywords
         metadata.top_keywords = keywords[:TOP_KEYWORD_COUNT]
@@ -337,12 +340,16 @@ class MetadataGenerator:
 
         return metadata
 
-    def _enforce_title(self, title: str, vision: VisionAnalysis, location: Location) -> str:
+    def _enforce_title(self, title: str, vision: VisionAnalysis, location: Location, content_type: str = 'Commercial') -> str:
         """Ensure 180-200 chars. Truncates over 200 at word boundary. Expands under 180 using factual vision/location data."""
         if not title:
             return title
 
         title = title.strip()
+        # Commercial titles: replace dashes/hyphens with commas for flowing sentence
+        if content_type != 'Editorial':
+            title = title.replace(' - ', ', ').replace(' — ', ', ').replace('–', ',')
+            title = re.sub(r'\s+[-–—]\s+', ', ', title)
         if not title.endswith('.'):
             title += '.'
         title = title.strip()
@@ -467,10 +474,11 @@ class MetadataGenerator:
         if len(keywords) >= MIN_KEYWORD_COUNT:
             return keywords
         padding = [
-            'stock photography', 'stock photo', 'professional photography',
-            'high quality', 'creative', 'art', 'concept', 'idea',
-            'inspiration', 'visual', 'design', 'background', 'scene',
-            'environment', 'outdoor', 'photograph', 'capture', 'shot',
+            'creative', 'art', 'concept', 'idea', 'inspiration',
+            'visual', 'design', 'background', 'scene', 'environment',
+            'outdoor', 'indoor', 'photograph', 'capture', 'shot',
+            'view', 'panorama', 'perspective', 'composition',
+            'atmosphere', 'mood', 'tone', 'style', 'aesthetic',
         ]
         seen = {k.lower() for k in keywords}
         for p in padding:
