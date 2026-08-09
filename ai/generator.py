@@ -342,15 +342,14 @@ class MetadataGenerator:
         keywords = self._split_multichword_keywords(keywords)
 
     def _split_multichword_keywords(self, keywords: list[str]) -> list[str]:
-        """Split multi-word keywords into single words."""
+        """Split multi-word keywords into single words, keeping the original phrase."""
         stop_words = {'a', 'an', 'the', 'in', 'on', 'at', 'by', 'for', 'of', 'with', 'from', 'and', 'or'}
         result: list[str] = []
         for kw in keywords:
+            result.append(kw)  # Keep original
             if ' ' in kw:
                 words = [w.lower() for w in kw.split() if w.lower() not in stop_words]
                 result.extend(words)
-            else:
-                result.append(kw)
         return result
         keywords = self._deduplicate_keywords(keywords)
         keywords = [k for k in keywords if k not in BANNED_KEYWORDS]
