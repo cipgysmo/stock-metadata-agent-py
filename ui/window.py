@@ -631,6 +631,18 @@ class ResultsView(QWidget):
         kw_row.addWidget(self._copy_kw_btn)
         meta_layout.addLayout(kw_row)
 
+        # Rerun button
+        meta_layout.addStretch()
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        self._rerun_btn = QPushButton("Rerun AI")
+        self._rerun_btn.setObjectName('secondary')
+        self._rerun_btn.setFixedSize(80, 28)
+        self._rerun_btn.setToolTip("Regenerate vision + text for this file")
+        self._rerun_btn.clicked.connect(self._on_rerun_selected)
+        btn_row.addWidget(self._rerun_btn)
+        meta_layout.addLayout(btn_row)
+
         detail_layout.addLayout(meta_layout, 1)
         layout.addWidget(self._detail)
 
@@ -720,6 +732,55 @@ class ResultsView(QWidget):
     def _copy_to_clipboard(self, text):
         from PySide6.QtWidgets import QApplication
         QApplication.clipboard().setText(text)
+
+    def _on_rerun_selected(self):
+        """Rerun vision and text generation for the selected file."""
+        if not self._current_result:
+            return
+        file_path = self._current_result.file_path
+        vision = getattr(self._current_result, 'vision_analysis', None)
+        if not vision:
+            return
+        # Disable button during rerun
+        self._rerun_btn.setEnabled(False)
+        self._rerun_btn.setText("Running...")
+        # Run in background thread
+        self._rerun_worker = _RerunWorker(
+            self.main_window._orchestrator,
+            file_path,
+            vision,
+            self.main_window._process_panel._options_card.get_content_type_override(),
+        )
+        self._rerun_worker.finished.connect(self._on_rerun_finished)
+        self._rerun_thread = QThread()
+        self._rerun_worker.moveToThread(self._rerun_thread)
+        self._rerun_thread.started.connect(self._rerun_worker.run)
+        self._rerun_worker.finished.connect(self._rerun_thread.quit)
+        self._rerun_thread.finished.connect(self._rerun_thread.deleteLater)
+        self._rerun_thread.start()
+
+    def _on_rerun_finished(self, result):
+        """Handle rerun completion: update table, detail, and write metadata."""
+        self._rerun_btn.setEnabled(True)
+        self._rerun_btn.setText("Rerun AI")
+        if not result:
+            return
+        # Find and update the result in the table
+        for i, r in enumerate(self._results):
+            if r.file_path == result.file_path:
+                self._results[i] = result
+                # Update table
+                title_text = result.title[:80] + ('…' if len(result.title) > 80 else '')
+                self._table.setItem(i, 1, QTableWidgetItem(title_text))
+                # Update detail panel if this file is selected
+                if self._current_result and self._current_result.file_path == result.file_path:
+                    self._current_result = result
+                    self._detail_name.setText(os.path.basename(result.file_path))
+                    self._detail_type.setText(getattr(result, 'content_type', 'Commercial') or 'Commercial')
+                    self._detail_category.setText(getattr(result, 'category', '') or '—')
+                    self._detail_title.setText(result.title)
+                    self._detail_keywords.setText(', '.join(result.keywords))
+                break
 
     def _on_double_click(self, row, col):
         if col != 0:
@@ -955,3 +1016,21 @@ class _BatchWorker(QObject):
             self.finished.emit(report)
         except Exception as e:
             self.error.emit(str(e))
+
+
+class _RerunWorker(QObject):
+    """Background worker for rerunning vision + text on a single file."""
+    finished = Signal(object)  # FileResult
+
+    def __init__(self, orchestrator, file_path, vision_analysis, content_type_override):
+        super().__init__()
+        self.orchestrator = orchestrator
+        self.file_path = file_path
+        self.vision_analysis = vision_analysis
+        self.content_type_override = content_type_override
+
+    def run(self):
+        result = self.orchestrator.rerun_file(
+            self.file_path, self.vision_analysis, self.content_type_override
+        )
+        self.finished.emit(result)

@@ -689,9 +689,72 @@ class BatchOrchestrator:
                     self.location_memory.learn(record)
                     logger.debug(f"Learned new location: {vision.city}, {vision.country}")
 
-    def _report_progress(self, current: int, total: int, message: str) -> None:
-        """Report progress update."""
-        try:
-            self.signals.progress_updated.emit(current, total, message)
-        except Exception as e:
-            logger.warning(f"Progress signal error: {e}")
+    def rerun_file(self, file_path: str, vision_analysis: VisionAnalysis,
+                   content_type_override: str = '') -> FileResult:
+        """Rerun vision and text generation for a single file (used for manual retry)."""
+        result = FileResult(file_path=file_path)
+        file_info = Scanner(os.path.dirname(file_path))._classify(file_path)
+        if not file_info:
+            return result
+
+        vision_client, text_client, fallback_client = self._get_clients()
+        folder_location = self.location_parser.parse(file_info.folder_location)
+        context = {'location_hint': folder_location.display_name}
+
+        # Rerun vision
+        if file_info.file_type == 'image':
+            vision = self._analyze_image(file_info, vision_client, context)
+        else:
+            vision, _ = self._analyze_video(file_info, vision_client, context)
+
+        # Build location
+        gps_validator = GPSValidator()
+        gps_info = gps_validator.extract_gps(file_info.path)
+        effective_city = folder_location.city
+        effective_region = folder_location.region
+        effective_country = folder_location.country
+        if gps_info and gps_info.has_gps:
+            effective_city = gps_info.exif_city or effective_city
+            effective_region = gps_info.exif_region or gps_info.exif_state or effective_region
+            effective_country = gps_info.exif_country or effective_country
+        location = Location(
+            city=effective_city, country=effective_country,
+            region=effective_region, landmark=folder_location.landmark,
+        )
+
+        result.vision_analysis = vision
+
+        # Rerun text generation
+        generator = MetadataGenerator(text_client, max_tokens=1500, fallback_client=fallback_client)
+        date_str = ''
+        if gps_info and gps_info.raw_data:
+            for date_field in ('DateTimeOriginal', 'CreateDate', 'DateTimeDigitized'):
+                if date_field in gps_info.raw_data:
+                    date_str = gps_info.raw_data[date_field][:10]
+                    break
+        metadata = generator.generate(vision, location,
+                                      is_video=(file_info.file_type == 'video'),
+                                      gps_info=gps_info,
+                                      date_string=date_str,
+                                      content_type_override=content_type_override or self._content_type_override)
+
+        result.title = metadata.title
+        result.description = metadata.description
+        result.content_type = metadata.content_type
+        result.category = metadata.category
+        result.keywords = metadata.keywords
+        result.top_keywords = metadata.top_keywords
+        result.keywords = self._fix_keywords(result.keywords)
+        result.top_keywords = result.keywords[:10]
+
+        # Rerun metadata write
+        if result.title and result.description and result.keywords:
+            self._write_metadata(file_info, result)
+
+        result.success = (
+            result.title and
+            result.description and
+            len(result.keywords) >= MIN_KEYWORD_COUNT
+        )
+
+        return result
