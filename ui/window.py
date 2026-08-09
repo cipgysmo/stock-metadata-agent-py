@@ -382,47 +382,26 @@ class ProcessPage(QWidget):
         self._results_view = ResultsView(self)
         right.addWidget(self._results_view, 1)
 
-        # Stats card (shown after batch)
+        # Stats card (single row, shown after batch)
         self._stats_card = QFrame()
         self._stats_card.setObjectName('card')
         self._stats_card.setVisible(False)
-        stats_layout = QVBoxLayout(self._stats_card)
-        stats_layout.setContentsMargins(16, 14, 16, 14)
-        stats_layout.setSpacing(12)
+        stats_layout = QHBoxLayout(self._stats_card)
+        stats_layout.setContentsMargins(16, 10, 16, 10)
+        stats_layout.setSpacing(24)
 
-        # Summary row
-        summary_row = QHBoxLayout()
-        summary_row.setSpacing(24)
-        self._summary_items = []
-        for label, key in [("Processed", "total"), ("OK", "ok"), ("Failed", "fail")]:
+        self._stat_items = []
+        for label, key in [("Processed", "processed"), ("OK", "ok"), ("Failed", "fail"), ("Total", "total_time"), ("Per File", "avg_time")]:
             col = QVBoxLayout()
             lbl = QLabel(label)
             lbl.setStyleSheet("font-size: 11px; font-weight: 600;")
             col.addWidget(lbl)
             col.setSpacing(2)
             val = QLabel("—")
-            val.setStyleSheet("font-size: 18px; font-weight: 700;")
+            val.setStyleSheet("font-size: 14px; font-weight: 700;")
             col.addWidget(val)
-            self._summary_items.append((key, val))
-            summary_row.addLayout(col, 1)
-        stats_layout.addLayout(summary_row)
-
-        # Timing row
-        timing_row = QHBoxLayout()
-        timing_row.setSpacing(24)
-        self._timing_items = []
-        for label, key in [("Total", "total_time"), ("Per File", "avg_time")]:
-            col = QVBoxLayout()
-            lbl = QLabel(label)
-            lbl.setStyleSheet("font-size: 11px; font-weight: 600;")
-            col.addWidget(lbl)
-            col.setSpacing(2)
-            val = QLabel("—")
-            val.setStyleSheet("font-size: 18px; font-weight: 700;")
-            col.addWidget(val)
-            self._timing_items.append((key, val))
-            timing_row.addLayout(col, 1)
-        stats_layout.addLayout(timing_row)
+            self._stat_items.append((key, val))
+            stats_layout.addLayout(col, 0)
 
         right.addWidget(self._stats_card)
         layout.addLayout(right, 1)
@@ -494,26 +473,21 @@ class ProcessPage(QWidget):
 
     def display_report(self, report):
         self._stats_card.setVisible(True)
+        total = report.successful + report.failed
+        self._stat_items[0][1].setText(str(total))
+        self._stat_items[1][1].setText(str(report.successful))
+        self._stat_items[1][1].setStyleSheet("font-size: 14px; font-weight: 700; color: #22c55e;")
+        fail_text = str(report.failed)
         if report.cancelled > 0:
-            self._summary_items[0][1].setText(str(report.successful + report.failed))
-            self._summary_items[1][1].setText(str(report.successful))
-            self._summary_items[1][1].setStyleSheet("font-size: 18px; font-weight: 700; color: #22c55e;")
-            self._summary_items[2][1].setText(f"{report.failed} + {report.cancelled} skipped")
-            self._summary_items[2][1].setStyleSheet("font-size: 16px; font-weight: 700; color: #f59e0b;")
-        else:
-            self._summary_items[0][1].setText(str(report.total_files))
-            self._summary_items[1][1].setText(str(report.successful))
-            self._summary_items[1][1].setStyleSheet("font-size: 18px; font-weight: 700; color: #22c55e;")
-            self._summary_items[2][1].setText(str(report.failed))
-            if report.failed > 0:
-                self._summary_items[2][1].setStyleSheet("font-size: 18px; font-weight: 700; color: #ef4444;")
-        self._results_view.display_report(report)
-
-        # Timing
-        self._timing_items[0][1].setText(report.format_total_time())
+            fail_text += f" + {report.cancelled} skipped"
+        self._stat_items[2][1].setText(fail_text)
+        if report.failed > 0:
+            self._stat_items[2][1].setStyleSheet("font-size: 14px; font-weight: 700; color: #ef4444;")
+        self._stat_items[3][1].setText(report.format_total_time())
         if report.successful + report.failed > 0:
             m, s = divmod(int(report.avg_time_per_file), 60)
-            self._timing_items[1][1].setText(f"{m}m {s}s" if m else f"{s}s")
+            self._stat_items[4][1].setText(f"{m}m {s}s" if m else f"{s}s")
+        self._results_view.display_report(report)
 
 
 class ResultsView(QWidget):
@@ -531,17 +505,15 @@ class ResultsView(QWidget):
         self._placeholder.setStyleSheet("font-size: 14px; padding: 60px; color: " + ('#71717a' if _is_dark() else '#9ca3af'))
         layout.addWidget(self._placeholder, 1)
 
-        # Table — 3 columns: File, Status, Title
+        # Table — 2 columns: File, Title
         self._table = QTableWidget()
-        self._table.setColumnCount(3)
-        self._table.setHorizontalHeaderLabels(["File", "Status", "Title"])
+        self._table.setColumnCount(2)
+        self._table.setHorizontalHeaderLabels(["File", "Title"])
         self._table.setFrameShape(QFrame.NoFrame)
         self._table.setCornerButtonEnabled(False)
         header = self._table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
-        self._table.setColumnWidth(1, 80)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self._table.setSelectionBehavior(QTableWidget.SelectRows)
         self._table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._table.verticalHeader().setVisible(False)
@@ -665,16 +637,9 @@ class ResultsView(QWidget):
         file_item.setData(Qt.UserRole, result.file_path)
         self._table.setItem(row, 0, file_item)
 
-        # Status
-        status = QTableWidgetItem("✓" if result.success else "✗")
-        status.setForeground(Qt.GlobalColor.green if result.success else Qt.GlobalColor.red)
-        status.setTextAlignment(Qt.AlignCenter)
-        status.setFont(QFont("system", 16, QFont.Bold))
-        self._table.setItem(row, 1, status)
-
         # Title
         title_text = result.title[:80] + ('…' if len(result.title) > 80 else '')
-        self._table.setItem(row, 2, QTableWidgetItem(title_text))
+        self._table.setItem(row, 1, QTableWidgetItem(title_text))
 
         self._results.append(result)
         self._file_paths.append(result.file_path)
