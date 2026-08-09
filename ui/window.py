@@ -561,14 +561,7 @@ class ResultsView(QWidget):
         self._table.setVisible(False)
         self._table.cellDoubleClicked.connect(self._on_double_click)
         layout.addWidget(self._table, 1)
-        self._row_progress_bars = {}
-        self._selected_row = None
-        self._selected_row = None
         self._rerun_busy = {}
-        self._rerun_busy = {}
-        self._rerun_busy = {}
-        self._rerun_thread = None
-        self._rerun_worker = None
         self._rerun_worker = None
         self._rerun_thread = None
 
@@ -669,33 +662,6 @@ class ResultsView(QWidget):
             '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>'
             '<path d="M3 22v-6h6"/>'
             '<path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>'
-            '</svg>'
-        )
-        renderer = QSvgRenderer(QByteArray(svg.encode()))
-        img = QImage(24, 24, QImage.Format.Format_ARGB32)
-        img.fill(0)
-        painter = QPainter(img)
-        renderer.render(painter)
-        painter.end()
-        return QIcon(QPixmap.fromImage(img))
-
-    @staticmethod
-    def _spinner_icon_svg():
-        from PySide6.QtGui import QPainter
-        from PySide6.QtSvg import QSvgRenderer
-        from PySide6.QtCore import QByteArray
-        stroke = '#3b82f6'
-        svg = (
-            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{stroke}" '
-            'stroke-width="2" stroke-linecap="round">'
-            '<path d="M12 2v4"/>'
-            '<path d="M12 18v4"/>'
-            '<path d="M4.93 4.93l2.83 2.83"/>'
-            '<path d="M16.24 16.24l2.83 2.83"/>'
-            '<path d="M2 12h4"/>'
-            '<path d="M18 12h4"/>'
-            '<path d="M4.93 19.07l2.83-2.83"/>'
-            '<path d="M16.24 7.76l2.83-2.83"/>'
             '</svg>'
         )
         renderer = QSvgRenderer(QByteArray(svg.encode()))
@@ -819,14 +785,16 @@ class ResultsView(QWidget):
         if not vision:
             self._rerun_busy[row] = False
             return
-        # Disable the button and show spinner icon
+        # Disable the button and show spinner indicator
         container = self._table.cellWidget(row, 0)
         if container:
             for i in range(container.layout().count()):
                 w = container.layout().itemAt(i).widget()
                 if isinstance(w, QPushButton):
                     w.setEnabled(False)
-                    w.setIcon(self._spinner_icon_svg())
+                    w.setIcon(QIcon())  # clear icon
+                    w.setStyleSheet("color: #3b82f6; font-size: 14px; font-weight: bold;")
+                    w.setText("⟳")  # Unicode spinning arrow
                     break
         self._rerun_busy[row] = True
         # Run in background thread using QRunnable (Qt-native, safe lifecycle)
@@ -853,6 +821,8 @@ class ResultsView(QWidget):
                 w = container.layout().itemAt(i).widget()
                 if isinstance(w, QPushButton):
                     w.setEnabled(True)
+                    w.setStyleSheet("")  # clear spinner style
+                    w.setText("")
                     w.setIcon(self._rerun_icon_svg())
                     break
         # Update the result in the list
@@ -868,10 +838,7 @@ class ResultsView(QWidget):
         self._table.setItem(row, 1, QTableWidgetItem(title_text))
         # Update detail panel if this row is currently selected
         selected = self._table.selectedItems()
-        is_selected = selected and selected[0].row() == row
-        import logging
-        logging.getLogger(__name__).info(f"Rerun: row={row}, is_selected={is_selected}, title={result.title[:40]}")
-        if is_selected:
+        if selected and selected[0].row() == row:
             self._current_result = result
             self._detail_name.setText(os.path.basename(result.file_path))
             self._detail_type.setText(getattr(result, 'content_type', 'Commercial') or 'Commercial')
@@ -893,12 +860,6 @@ class ResultsView(QWidget):
         exporter = CsvExporter()
         csv_path = os.path.join(self.main_window._current_folder, 'metadata_export.csv')
         exporter.export_batch(self._results, csv_path)
-
-    def _update_progress(self, value, row):
-        """Update progress bar value."""
-        progress_bar = self._row_progress_bars.get(row)
-        if progress_bar:
-            progress_bar.setValue(value)
 
     def _on_double_click(self, row, col):
         if col != 0:
