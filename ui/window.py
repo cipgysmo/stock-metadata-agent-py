@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QSplitter, QStatusBar, QWidget, QFrame, QTableWidget, QTableWidgetItem,
     QLineEdit, QPushButton, QSpinBox, QComboBox, QHeaderView, QDialog, QCheckBox
 )
-from PySide6.QtCore import Qt, QThread, Signal, QTimer, QObject, QSize, QByteArray, Property, QRect
+from PySide6.QtCore import Qt, QThread, Signal, QTimer, QObject, QSize, QByteArray, Property, QRect, QRunnable, QThreadPool, QRunnable, QThreadPool, QRunnable, QThreadPool
 from PySide6.QtGui import QFont, QPixmap, QImage, QIcon, QPainter
 
 from config.settings import Settings
@@ -559,6 +559,11 @@ class ResultsView(QWidget):
         self._table.cellDoubleClicked.connect(self._on_double_click)
         layout.addWidget(self._table, 1)
         self._row_progress_bars = {}
+        self._rerun_busy = {}
+        self._rerun_thread = None
+        self._rerun_worker = None
+        self._rerun_worker = None
+        self._rerun_thread = None
 
         # Detail + preview panel
         self._detail = QFrame()
@@ -788,9 +793,13 @@ class ResultsView(QWidget):
         """Rerun vision and text generation for a specific row."""
         if row < 0 or row >= len(self._results):
             return
+        if self._rerun_busy.get(row):
+            return
+        self._rerun_busy[row] = True
         result = self._results[row]
         vision = getattr(result, 'vision_analysis', None)
         if not vision:
+            self._rerun_busy[row] = False
             return
         # Disable the button for this row
         container = self._table.cellWidget(row, 0)
@@ -805,21 +814,17 @@ class ResultsView(QWidget):
         if progress_bar:
             progress_bar.setVisible(True)
             progress_bar.setValue(0)
-        # Run in background thread
-        self._rerun_worker = _RerunWorker(
+        # Run in background thread using QRunnable (Qt-native, safe lifecycle)
+        from PySide6.QtCore import QRunnable, QThreadPool
+        runnable = _RerunRunnable(
             self.main_window._orchestrator,
             result.file_path,
             vision,
             self.main_window._process_panel._options_card.get_content_type_override(),
+            self, row,
         )
-        self._rerun_worker.finished.connect(lambda r, row=row: self._on_rerun_finished(r, row))
-        self._rerun_worker.progress.connect(lambda p, row=row: self._update_progress(p, row))
-        self._rerun_thread = QThread()
-        self._rerun_worker.moveToThread(self._rerun_thread)
-        self._rerun_thread.started.connect(self._rerun_worker.run)
-        self._rerun_worker.finished.connect(self._rerun_thread.quit)
-        self._rerun_thread.finished.connect(self._rerun_thread.deleteLater)
-        self._rerun_thread.start()
+        runnable.setAutoDelete(True)
+        QThreadPool.globalInstance().start(runnable)
 
     def _on_rerun_finished(self, result, row):
         """Handle rerun completion: update table, detail, CSV, and re-embed metadata."""
@@ -1140,3 +1145,32 @@ class _RerunWorker(QObject):
             progress_callback=self.progress.emit
         )
         self.finished.emit(result)
+
+
+class _RerunRunnable(QRunnable):
+    """Qt-native rerun worker using QThreadPool."""
+
+    def __init__(self, orchestrator, file_path, vision_analysis, content_type_override,
+                 results_view, row):
+        super().__init__()
+        self.orchestrator = orchestrator
+        self.file_path = file_path
+        self.vision_analysis = vision_analysis
+        self.content_type_override = content_type_override
+        self.results_view = results_view
+        self.row = row
+
+    def run(self):
+        import functools
+        try:
+            result = self.orchestrator.rerun_file(
+                self.file_path, self.vision_analysis, self.content_type_override
+            )
+            # Use QTimer.singleShot to safely dispatch to main thread
+            from PySide6.QtCore import QTimer
+            rv = self.results_view
+            r = self.row
+            QTimer.singleShot(0, functools.partial(rv._on_rerun_finished, result, r))
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Rerun failed: {e}", exc_info=True)
