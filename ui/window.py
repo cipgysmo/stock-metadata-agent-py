@@ -162,6 +162,7 @@ class MainWindow(QMainWindow):
             return
 
         self._is_processing = True
+        self._current_folder = folder_path
         self._process_panel.set_processing_state(True)
         self._progress_bar.setRange(0, 100)
         self._progress_bar.setValue(0)
@@ -232,10 +233,10 @@ class MainWindow(QMainWindow):
         # Update process panel summary
         self._process_panel.display_report(report)
 
-        # CSV export
+        # CSV export — always in the root source folder
         if self._process_panel._options_card.get_export_csv() and report.successful > 0:
             exporter = CsvExporter()
-            csv_dir = os.path.dirname(report.results[0].file_path) if report.results else '.'
+            csv_dir = self._current_folder if hasattr(self, '_current_folder') else '.'
             csv_path = os.path.join(csv_dir, 'metadata_export.csv')
             exporter.export_batch(report.results, csv_path)
 

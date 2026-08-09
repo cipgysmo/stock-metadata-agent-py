@@ -41,17 +41,32 @@ class GPSValidator:
 
     def _find_exiftool(self) -> str:
         """Find exiftool binary, checking bundled location first."""
-        # Check bundled exiftool
-        bundled = None
-        if __import__('sys').platform == 'win32':
-            bundled = __import__('os').path.join(SETTINGS_DIR, 'exiftool', 'exiftool.exe')
+        import sys
+        import os
+        platform = sys.platform
+        exe = 'exiftool.exe' if platform == 'win32' else 'exiftool'
+
+        # Determine base directory (handles PyInstaller bundled app)
+        if getattr(sys, 'frozen', False):
+            base_dir = sys._MEIPASS
         else:
-            bundled = __import__('os').path.join(SETTINGS_DIR, 'exiftool', 'exiftool')
+            base_dir = os.path.dirname(os.path.abspath(__file__))
 
-        if bundled and __import__('os').path.exists(bundled):
-            return bundled
+        # Check bundled locations in priority order (1 and 2 levels up)
+        bundled_paths = [
+            os.path.join(base_dir, '..', 'resources', f'exiftool-{platform}', exe),
+            os.path.join(base_dir, '..', '..', 'resources', f'exiftool-{platform}', exe),
+            os.path.join(base_dir, '..', 'resources', 'exiftool-mac', exe),
+            os.path.join(base_dir, '..', '..', 'resources', 'exiftool-mac', exe),
+            os.path.join(base_dir, '..', 'resources', 'exiftool-win', exe),
+            os.path.join(base_dir, '..', '..', 'resources', 'exiftool-win', exe),
+            os.path.join(SETTINGS_DIR, 'exiftool', exe),
+        ]
+        for path in bundled_paths:
+            abs_path = os.path.abspath(path)
+            if os.path.exists(abs_path):
+                return abs_path
 
-        # Fall back to system exiftool
         return 'exiftool'
 
     def extract_gps(self, file_path: str) -> GPSInfo:
