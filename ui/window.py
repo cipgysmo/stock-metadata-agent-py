@@ -558,6 +558,7 @@ class ResultsView(QWidget):
         self._table.setVisible(False)
         self._table.cellDoubleClicked.connect(self._on_double_click)
         layout.addWidget(self._table, 1)
+        self._row_progress_bars = {}  # row -> QProgressBar
 
         # Detail + preview panel
         self._detail = QFrame()
@@ -648,8 +649,9 @@ class ResultsView(QWidget):
         from PySide6.QtGui import QPainter
         from PySide6.QtSvg import QSvgRenderer
         from PySide6.QtCore import QByteArray, QSize
+        stroke = '#a1a1aa' if _is_dark() else '#374151'
         svg = (
-            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" '
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{stroke}" '
             'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
             '<path d="M21 2v6h-6"/>'
             '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>'
@@ -694,20 +696,40 @@ class ResultsView(QWidget):
 
         # File name with rerun button in a container
         file_container = QWidget()
-        file_layout = QHBoxLayout(file_container)
-        file_layout.setContentsMargins(0, 0, 0, 0)
-        file_layout.setSpacing(6)
+        main_layout = QVBoxLayout(file_container)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        top_layout = QHBoxLayout()
+        top_layout.setSpacing(6)
         file_label = QLabel(os.path.basename(result.file_path))
         file_label.setStyleSheet("font-size: 13px;")
-        file_layout.addWidget(file_label, 1)
+        top_layout.addWidget(file_label, 1)
         rerun_btn = QPushButton()
         rerun_btn.setIcon(self._rerun_icon_svg())
         rerun_btn.setFixedSize(24, 24)
         rerun_btn.setToolTip("Regenerate vision + text for this file")
         rerun_btn.clicked.connect(lambda checked, r=row: self._on_rerun_row(r))
-        file_layout.addWidget(rerun_btn)
+        top_layout.addWidget(rerun_btn)
+        main_layout.addLayout(top_layout)
+
+        # Thin progress stripe (4px tall, hidden by default)
+        from PySide6.QtWidgets import QProgressBar
+        stripe_color = '#3b82f6'
+        progress_bar = QProgressBar()
+        progress_bar.setRange(0, 0)  # indeterminate
+        progress_bar.setTextVisible(False)
+        progress_bar.setFixedHeight(4)
+        progress_bar.setStyleSheet(f'''
+            QProgressBar {{ border: none; background: transparent; text-align: center; }}
+            QProgressBar::chunk {{ background: {stripe_color}; }}
+        ''')
+        progress_bar.setVisible(False)
+        main_layout.addWidget(progress_bar)
+        self._row_progress_bars[row] = progress_bar
+
         # Store file path in the container
-        file_layout.setProperty('file_path', result.file_path)
+        file_container.setProperty('file_path', result.file_path)
         # Use a widget for the file column
         self._table.setCellWidget(row, 0, file_container)
         # Store the file path in UserRole of a hidden item for double-click handling
@@ -718,6 +740,9 @@ class ResultsView(QWidget):
         # Title
         title_text = result.title[:80] + ('…' if len(result.title) > 80 else '')
         self._table.setItem(row, 1, QTableWidgetItem(title_text))
+
+        # Set proper row height to fit button + padding
+        self._table.setRowHeight(row, 48)
 
         self._results.append(result)
         self._file_paths.append(result.file_path)
@@ -780,6 +805,10 @@ class ResultsView(QWidget):
                 if isinstance(w, QPushButton):
                     w.setEnabled(False)
                     w.setIcon(QIcon())
+        # Show progress stripe
+        progress_bar = self._row_progress_bars.get(row)
+        if progress_bar:
+            progress_bar.setVisible(True)
         # Run in background thread
         self._rerun_worker = _RerunWorker(
             self.main_window._orchestrator,
@@ -799,6 +828,10 @@ class ResultsView(QWidget):
         """Handle rerun completion: update table, detail, CSV, and re-embed metadata."""
         if not result:
             return
+        # Hide progress stripe
+        progress_bar = self._row_progress_bars.get(row)
+        if progress_bar:
+            progress_bar.setVisible(False)
         # Re-enable the button
         container = self._table.cellWidget(row, 0)
         if container:
