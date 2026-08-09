@@ -694,23 +694,18 @@ class ResultsView(QWidget):
         if row < 0 or row >= len(self._file_paths):
             return
         file_path = self._file_paths[row]
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"Double-click open: {file_path} (exists={os.path.exists(file_path)})")
+        if not os.path.exists(file_path):
+            return
         # Open file with default application
         try:
             import subprocess
-            import ctypes
             if os.name == 'nt':
-                # ShellExecuteW - must use native Windows path with backslashes
-                native_path = file_path.replace('/', '\\')
-                ctypes.windll.shell32.ShellExecuteW(
-                    None, 'open', native_path, None, None, 1
-                )
+                # 'start' command with empty string before path handles spaces correctly
+                subprocess.Popen(['start', '', file_path], shell=True)
             else:
                 subprocess.Popen(['open', file_path])
-        except Exception as e:
-            logger.error(f"Failed to open file {file_path}: {e}")
+        except Exception:
+            pass
 
     def _load_thumbnail(self, file_path):
         if not os.path.exists(file_path):
