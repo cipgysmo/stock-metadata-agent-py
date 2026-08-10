@@ -120,8 +120,8 @@ if is_mac:
         icon='resources/icon.png',
         bundle_identifier='com.stockmetadata.agent',
         info_plist={
-            'CFBundleShortVersionString': '0.1.0',
-            'CFBundleVersion': '0.1.0',
+            'CFBundleShortVersionString': '0.1.5',
+            'CFBundleVersion': '0.1.5',
         },
         entitlements_file=None,
     )

@@ -278,7 +278,7 @@ def main():
 
     app = QApplication(sys.argv)
     app.setApplicationName("AI Stock Metadata Agent")
-    app.setApplicationVersion("0.1.0")
+    app.setApplicationVersion("0.1.5")
     app.setStyle("Fusion")
 
     icon_path = _get_icon_path()

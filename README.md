@@ -542,6 +542,16 @@ This is expected if the source files were moved or renamed after processing. The
 
 ## Changelog
 
+### v0.1.5 (2026-08-10)
+- **Model readiness check**: Waits for AI model to load before processing (120s timeout)
+- **Regenerate per file**: Rerun button per row to regenerate vision + text for a single file
+- **Spinning indicator**: Animated spinner during regeneration
+- **Detail panel refresh**: Title, keywords, and metadata update after regeneration
+- **CSV auto-refresh**: CSV export updates after each regeneration
+- **Underscore keyword fix**: Sanitizes underscored keywords (e.g., `wind_farm` → `wind farm`)
+- **Solar panel bias fix**: Removes contradictory tech keywords for wind farm images
+- **Font warning fix**: Removed `sans-serif` fallback from stylesheet
+
 ### v0.1.1 (2026-08-09)
 - **Batch Options card**: Expandable panel with batch-level settings
 - **Content Type override**: Force Editorial or Commercial for entire batch
