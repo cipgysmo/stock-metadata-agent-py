@@ -2,6 +2,7 @@
 
 import os
 from dataclasses import dataclass
+from typing import Generator
 from config.constants import IMAGE_EXTENSIONS, SUPPORTED_EXTENSIONS
 
 
