@@ -691,7 +691,7 @@ class BatchOrchestrator:
             )
             if success:
                 result.output_file = file_info.path
-            elif file_info.ext in SIDECAR_VIDEO_FORMATS:
+            elif file_info.extension in SIDECAR_VIDEO_FORMATS:
                 # Only fallback to sidecar for formats that can't embed
                 self._write_sidecar(file_info, result)
             else:
