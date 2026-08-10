@@ -244,6 +244,8 @@ class MainWindow(QMainWindow):
         """Cancel batch processing."""
         self._progress_bar.setFormat("Cancelling...")
         self._process_panel._results_view._placeholder.setText("Cancelling...")
+        # Stop all spinning timers immediately
+        self._process_panel._results_view.stop_all_spinners()
         if self._orchestrator:
             self._orchestrator.cancel()
 
@@ -285,6 +287,8 @@ class MainWindow(QMainWindow):
         self._current_report = report
         self._progress_bar.setRange(0, 100)
         self._progress_bar.setValue(100)
+        # Stop all spinning timers and hide spinners
+        self._process_panel._results_view.stop_all_spinners()
 
         if report.cancelled > 0:
             self._progress_bar.setFormat(f"Cancelled: {report.successful} processed, {report.cancelled} skipped — {report.format_total_time()}")
@@ -801,6 +805,22 @@ class ResultsView(QWidget):
                     self._row_spinning[i] = timer
                 return
 
+    def stop_all_spinners(self):
+        """Stop all spinning timers and hide spinners (called on batch end/cancel)."""
+        for row, timer in self._row_spinning.items():
+            if isinstance(timer, QTimer):
+                timer.stop()
+                timer.deleteLater()
+            container = self._table.cellWidget(row, 0)
+            if container:
+                spinner = container.property('spinner_label')
+                if spinner:
+                    spinner.hide()
+                btn = container.property('rerun_btn')
+                if btn:
+                    btn.show()
+        self._row_spinning.clear()
+
     def _cycle_spinner(self, row, frames, frame_idx):
         """Cycle through spinner frames for a given row."""
         container = self._table.cellWidget(row, 0)
@@ -902,6 +922,17 @@ class ResultsView(QWidget):
         self._preview_label.setVisible(True)
 
         self._detail_name.setText(os.path.basename(file_path))
+
+        if result is None:
+            # File not yet processed
+            self._detail_type.setText('Queued')
+            self._detail_category.setText('—')
+            self._detail_title.setText('Waiting for processing...')
+            self._detail_keywords.setText('')
+            self._current_result = None
+            self._show_no_preview()
+            return
+
         self._detail_type.setText(getattr(result, 'content_type', 'Commercial') or 'Commercial')
         self._detail_category.setText(getattr(result, 'category', '') or '—')
         self._detail_title.setText(result.title)
