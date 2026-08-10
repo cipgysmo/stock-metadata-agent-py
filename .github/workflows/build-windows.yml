@@ -12,6 +12,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Get version from tag
+        id: version
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag -replace '^v', ''
+          echo "VERSION=$version" >> $env:GITHUB_ENV
+          echo "TAG=$tag" >> $env:GITHUB_ENV
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -28,10 +36,18 @@ jobs:
 
       - name: Package release
         run: |
-          Compress-Archive -Path "dist\stock-metadata-agent" -DestinationPath "dist\AI Stock Metadata Agent v0.1.0 (Windows).zip"
+          Compress-Archive -Path "dist\stock-metadata-agent" -DestinationPath "dist\AI Stock Metadata Agent v${{ env.VERSION }} (Windows).zip"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-release
-          path: dist\AI Stock Metadata Agent v0.1.0 (Windows).zip
+          path: dist\AI Stock Metadata Agent v${{ env.VERSION }} (Windows).zip
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist\AI Stock Metadata Agent v${{ env.VERSION }} (Windows).zip
+          tag_name: ${{ env.TAG }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
