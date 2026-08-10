@@ -455,7 +455,7 @@ class ProcessPage(QWidget):
         self._stats_card.setObjectName('card')
         self._stats_card.setVisible(False)
         stats_layout = QHBoxLayout(self._stats_card)
-        stats_layout.setContentsMargins(16, 10, 16, 10)
+        stats_layout.setContentsMargins(16, 0, 16, 10)
         stats_layout.setSpacing(24)
 
         self._stat_items = []
@@ -559,7 +559,7 @@ class ResultsView(QWidget):
         self.main_window = main_window
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
+        layout.setSpacing(12)
 
         # Placeholder
         self._placeholder = QLabel("Select a folder and click Process to get started.")
@@ -592,7 +592,7 @@ class ResultsView(QWidget):
         self._detail.setObjectName('card')
         detail_layout = QHBoxLayout(self._detail)
         detail_layout.setSpacing(16)
-        detail_layout.setContentsMargins(16, 12, 16, 12)
+        detail_layout.setContentsMargins(16, 10, 16, 10)
         self._detail.setVisible(False)
 
         # Left: thumbnail
