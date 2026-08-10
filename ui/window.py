@@ -454,10 +454,15 @@ class ProcessPage(QWidget):
         self._stats_card = QFrame()
         self._stats_card.setObjectName('card')
         self._stats_card.setVisible(False)
-        stats_layout = QHBoxLayout(self._stats_card)
-        stats_layout.setContentsMargins(16, 0, 16, 10)
+        # Use QVBoxLayout with stretch to center content vertically
+        card_vbox = QVBoxLayout(self._stats_card)
+        card_vbox.setContentsMargins(16, 8, 16, 8)
+        card_vbox.setSpacing(0)
+        card_vbox.addStretch(1)
+        stats_layout = QHBoxLayout()
         stats_layout.setSpacing(24)
-
+        card_vbox.addLayout(stats_layout)
+        card_vbox.addStretch(1)
         self._stat_items = []
         for label, key in [("Processed", "processed"), ("Total", "total_time"), ("Per File", "avg_time")]:
             col = QVBoxLayout()
