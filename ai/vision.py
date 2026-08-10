@@ -158,10 +158,9 @@ class VisionAnalyzer:
             if location_hint:
                 user_text += f" The photo was taken in: {location_hint}."
 
-        # Merge system + user into single user message — many models (Qwen, OMLX)
-        # ignore or mishandle the system role
         messages = [
-            {'role': 'user', 'content': f"{system_prompt}\n\n{user_text}"},
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': user_text},
         ]
 
         try:
@@ -200,9 +199,9 @@ class VisionAnalyzer:
         if is_key_frame:
             user_text += " This is the most commercially relevant frame."
 
-        # Merge system + user — many models ignore the system role
         messages = [
-            {'role': 'user', 'content': f"{system_prompt}\n\n{user_text}"},
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': user_text},
         ]
 
         try:

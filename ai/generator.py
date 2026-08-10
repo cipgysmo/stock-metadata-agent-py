@@ -150,9 +150,9 @@ class MetadataGenerator:
                 f"Output valid JSON only."
             )
 
-        # Merge system + user — many models (Qwen, OMLX) ignore the system role
         messages = [
-            {'role': 'user', 'content': f"{METADATA_SYSTEM_PROMPT}\n\n{user_text}"},
+            {'role': 'system', 'content': METADATA_SYSTEM_PROMPT},
+            {'role': 'user', 'content': user_text},
         ]
 
         max_retries = 3
