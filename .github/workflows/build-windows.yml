@@ -15,7 +15,14 @@ jobs:
       - name: Get version from tag
         id: version
         run: |
-          $tag = "${{ github.ref_name }}"
+          $ref = "${{ github.ref }}"
+          if ($ref -match "refs/tags/(v[0-9.]+)") {
+            $tag = $Matches[1]
+          } elseif ($ref -match "refs/heads/master") {
+            $tag = "v0.1.5"
+          } else {
+            $tag = "v0.1.5"
+          }
           $version = $tag -replace '^v', ''
           echo "VERSION=$version" >> $env:GITHUB_ENV
           echo "TAG=$tag" >> $env:GITHUB_ENV
@@ -45,9 +52,7 @@ jobs:
           path: dist\AI Stock Metadata Agent v${{ env.VERSION }} (Windows).zip
 
       - name: Upload to release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist\AI Stock Metadata Agent v${{ env.VERSION }} (Windows).zip
-          tag_name: ${{ env.TAG }}
+        run: |
+          gh release upload ${{ env.TAG }} "dist\AI Stock Metadata Agent v${{ env.VERSION }} (Windows).zip" --repo ${{ github.repository }} --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
