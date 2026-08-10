@@ -111,7 +111,7 @@ def _get_stylesheet():
 
     return f"""
         QMainWindow {{ background-color: {BG}; }}
-        QWidget {{ font-family: "Helvetica Neue", Arial, sans-serif; font-size: 13px; color: {TEXT}; }}
+        QWidget {{ font-family: "Helvetica Neue", Arial; font-size: 13px; color: {TEXT}; }}
 
         QTabWidget::pane {{
             border: none; background: transparent;
