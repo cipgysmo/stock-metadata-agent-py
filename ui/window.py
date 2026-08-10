@@ -206,7 +206,7 @@ class MainWindow(QMainWindow):
         self._process_panel._results_view._detail.setVisible(False)
         self._process_panel._results_view._results = []
         self._process_panel._results_view._file_paths = []
-        self._process_panel._results_view._row_spinning = set()
+        self._process_panel._results_view._row_spinning = {}
         self._process_panel.set_processing_state(True)
         self._progress_bar.setRange(0, 100)
         self._progress_bar.setValue(0)
