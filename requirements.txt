@@ -5,5 +5,4 @@ opencv-python-headless>=4.8
 imagehash>=4.3
 exifread>=3.0
 ffmpeg-python>=0.2
-tenacity>=8.0
 structlog>=24.0

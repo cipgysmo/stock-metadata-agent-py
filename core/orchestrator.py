@@ -1,6 +1,5 @@
 """Batch processing orchestrator with parallel execution."""
 
-import concurrent.futures
 import logging
 import os
 import time
@@ -371,7 +370,7 @@ class BatchOrchestrator:
                     except Exception:
                         pass
 
-                with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pe:
+                with ThreadPoolExecutor(max_workers=2) as pe:
                     pe.submit(_do_gps)
                     pe.submit(_do_vision)
                     pe.shutdown(wait=True)
