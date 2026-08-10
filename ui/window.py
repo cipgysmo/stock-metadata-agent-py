@@ -896,6 +896,17 @@ class ResultsView(QWidget):
                 title_text = result.title[:80] + ('…' if len(result.title) > 80 else '')
                 self._table.setItem(i, 1, QTableWidgetItem(title_text))
                 self._results[i] = result
+                # If this row is currently selected, refresh detail panel + thumbnail
+                selected = self._table.selectedItems()
+                if selected and selected[0].row() == i:
+                    self._current_result = result
+                    self._detail_name.setText(os.path.basename(result.file_path))
+                    self._detail_type.setText(getattr(result, 'content_type', 'Commercial') or 'Commercial')
+                    self._detail_category.setText(getattr(result, 'category', '') or '—')
+                    self._detail_title.setText(result.title)
+                    self._detail_keywords.setText(', '.join(result.keywords))
+                    # Refresh thumbnail
+                    QTimer.singleShot(50, lambda: self._load_thumbnail(result.file_path))
                 return
 
         # New row (shouldn't happen with pre-population, but keep as fallback)
