@@ -710,6 +710,13 @@ class ResultsView(QWidget):
         file_label = QLabel(os.path.basename(result.file_path))
         file_label.setStyleSheet("font-size: 13px;")
         top_layout.addWidget(file_label, 1)
+        # Spinner label (hidden until processing)
+        spinner_label = QLabel()
+        spinner_label.setFixedSize(16, 16)
+        spinner_label.setAlignment(Qt.AlignCenter)
+        spinner_label.setStyleSheet("color: #3b82f6; font-size: 14px; font-weight: bold;")
+        spinner_label.setVisible(False)
+        top_layout.addWidget(spinner_label)
         rerun_btn = QPushButton()
         rerun_btn.setIcon(self._rerun_icon_svg())
         rerun_btn.setIconSize(QSize(12, 12))
@@ -719,6 +726,9 @@ class ResultsView(QWidget):
         top_layout.addWidget(rerun_btn)
         main_layout.addLayout(top_layout)
 
+        # Store refs for animation
+        file_container.setProperty('spinner_label', spinner_label)
+        file_container.setProperty('rerun_btn', rerun_btn)
         file_container.setProperty('file_path', result.file_path)
         self._table.setCellWidget(row, 0, file_container)
         hidden_item = QTableWidgetItem("")
@@ -785,21 +795,21 @@ class ResultsView(QWidget):
         if not vision:
             self._rerun_busy[row] = False
             return
-        # Disable the button and start spinning animation
+        # Hide button, show spinner, start animation
         container = self._table.cellWidget(row, 0)
         if container:
-            for i in range(container.layout().count()):
-                w = container.layout().itemAt(i).widget()
-                if isinstance(w, QPushButton):
-                    w.setEnabled(False)
-                    break
-        # Store button ref and angle for animation
-        self._rerun_busy[row] = {'button': w, 'angle': 0}
-        # Start spin timer: rotate icon every 60ms
+            btn = container.property('rerun_btn')
+            spinner = container.property('spinner_label')
+            if btn:
+                btn.hide()
+            if spinner:
+                spinner.show()
+        # Store refs for animation
+        self._rerun_busy[row] = {'spinner': container.property('spinner_label'), 'frame': 0}
+        # Start spin timer: cycle spinner frames every 80ms
         timer = QTimer(self)
         timer.timeout.connect(lambda: self._spin_rerun_icon(row))
-        timer.start(60)
-        # Store timer reference so we can stop it later
+        timer.start(80)
         self._rerun_busy[row]['timer'] = timer
         # Run in background thread using QRunnable (Qt-native, safe lifecycle)
         from PySide6.QtCore import QRunnable, QThreadPool
@@ -814,60 +824,36 @@ class ResultsView(QWidget):
         QThreadPool.globalInstance().start(runnable)
 
     def _spin_rerun_icon(self, row):
-        """Rotate the rerun icon for a spinning animation."""
+        """Cycle spinner frames for a spinning animation."""
         busy = self._rerun_busy.get(row)
-        if not busy or 'button' not in busy:
+        if not busy or 'spinner' not in busy:
             return
-        btn = busy['button']
-        if not btn:
+        spinner = busy['spinner']
+        if not spinner:
             return
-        busy['angle'] = (busy['angle'] + 30) % 360
-        angle = busy['angle']
-        stroke = '#3b82f6'  # blue for active state
-        svg = (
-            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{stroke}" '
-            'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-            '<path d="M21 2v6h-6"/>'
-            '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>'
-            '<path d="M3 22v-6h6"/>'
-            '<path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>'
-            '</svg>'
-        )
-        from PySide6.QtGui import QPainter
-        from PySide6.QtSvg import QSvgRenderer
-        from PySide6.QtCore import QByteArray
-        renderer = QSvgRenderer(QByteArray(svg.encode()))
-        img = QImage(24, 24, QImage.Format.Format_ARGB32)
-        img.fill(0)
-        painter = QPainter(img)
-        painter.translate(12, 12)
-        painter.rotate(angle)
-        painter.translate(-12, -12)
-        renderer.render(painter)
-        painter.end()
-        btn.setIcon(QIcon(QPixmap.fromImage(img)))
+        frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+        busy['frame'] = (busy['frame'] + 1) % len(frames)
+        spinner.setText(frames[busy['frame']])
 
     def _on_rerun_finished(self, result, row):
         """Handle rerun completion: update table, detail, CSV, and re-embed metadata."""
         if not result:
             return
-        # Stop spinning timer
+        # Stop spinning timer, hide spinner, show button
         busy = self._rerun_busy.pop(row, None)
         if busy and 'timer' in busy:
             timer = busy['timer']
             timer.stop()
             timer.deleteLater()
-        # Re-enable the button
         container = self._table.cellWidget(row, 0)
         if container:
-            for i in range(container.layout().count()):
-                w = container.layout().itemAt(i).widget()
-                if isinstance(w, QPushButton):
-                    w.setEnabled(True)
-                    w.setStyleSheet("")  # clear spinner style
-                    w.setText("")
-                    w.setIcon(self._rerun_icon_svg())
-                    break
+            spinner = container.property('spinner_label')
+            btn = container.property('rerun_btn')
+            if spinner:
+                spinner.hide()
+                spinner.setText('')
+            if btn:
+                btn.show()
         # Update the result in the list
         self._results[row] = result
         # Update table row - update file name label and title
