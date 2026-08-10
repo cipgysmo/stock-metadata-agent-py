@@ -36,6 +36,7 @@ class _OrchestratorSignals(QObject):
     """Signal emitter for thread-safe UI updates from orchestrator."""
     progress_updated = Signal(int, int, str)
     file_result_ready = Signal(object)  # FileResult
+    file_processing = Signal(str)  # file_path when processing starts
 
 
 class _WorkerSignals(QObject):
@@ -199,10 +200,15 @@ class BatchOrchestrator:
         results: list[FileResult] = []
 
         with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix='processor') as pool:
-            futures = {
-                pool.submit(self._process_file, f, duplicate_detector): f
-                for f in files
-            }
+            futures = {}
+            for f in files:
+                future = pool.submit(self._process_file, f, duplicate_detector)
+                futures[future] = f
+                # Signal UI to show spinner for this file
+                try:
+                    self.signals.file_processing.emit(f.path)
+                except Exception:
+                    pass
 
             # Polling loop — checks abort flag frequently instead of blocking on as_completed
             remaining = list(futures.keys())

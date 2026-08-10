@@ -1,6 +1,4 @@
 import functools
-import functools
-import functools
 import os
 import sys
 from PySide6.QtWidgets import (
@@ -14,6 +12,7 @@ from PySide6.QtGui import QFont, QPixmap, QImage, QIcon, QPainter
 
 from config.settings import Settings
 from core.orchestrator import BatchOrchestrator, BatchReport, FileResult
+from core.scanner import Scanner
 from export.csv import CsvExporter
 from ui.panels.settings import SettingsPanel
 
@@ -203,16 +202,24 @@ class MainWindow(QMainWindow):
         # Clear old results and stats for a clean slate
         self._process_panel._stats_card.setVisible(False)
         self._process_panel._results_view._table.setRowCount(0)
-        self._process_panel._results_view._table.setVisible(False)
-        self._process_panel._results_view._placeholder.setVisible(True)
-        self._process_panel._results_view._placeholder.setText("Processing...")
+        self._process_panel._results_view._placeholder.setVisible(False)
         self._process_panel._results_view._detail.setVisible(False)
         self._process_panel._results_view._results = []
         self._process_panel._results_view._file_paths = []
+        self._process_panel._results_view._row_spinning = set()
         self._process_panel.set_processing_state(True)
         self._progress_bar.setRange(0, 100)
         self._progress_bar.setValue(0)
         self._progress_bar.setFormat("Scanning files...")
+        # Pre-populate table with file names
+        scanner = Scanner(folder_path)
+        files = scanner.scan()
+        if files:
+            self._process_panel._results_view._placeholder.setVisible(False)
+            self._process_panel._results_view._table.setVisible(True)
+            for f in files:
+                self._process_panel.add_pending_file(f)
+            self._progress_bar.setFormat(f"Found {len(files)} files — starting...")
 
         self._orchestrator = BatchOrchestrator(
             self.settings,
@@ -220,6 +227,8 @@ class MainWindow(QMainWindow):
         )
         self._orchestrator.set_progress_callback(self._on_progress)
         self._orchestrator.set_file_callback(self._on_file_result)
+        # Connect spinner signal
+        self._orchestrator.signals.file_processing.connect(self._on_file_processing)
 
         self._worker_thread = QThread()
         self._worker = _BatchWorker(self._orchestrator, folder_path)
@@ -248,6 +257,12 @@ class MainWindow(QMainWindow):
             self._progress_bar.setFormat(f"{current}/{total} — {message}")
         else:
             self._progress_bar.setFormat(message)
+
+    def _on_file_processing(self, file_path):
+        """Show spinner for a file that just started processing."""
+        if not self.isVisible():
+            return
+        self._process_panel._results_view.start_spinner(file_path)
 
     def _on_file_result(self, result):
         """Handle per-file result."""
@@ -646,6 +661,7 @@ class ResultsView(QWidget):
         self._results = []
         self._file_paths = []
         self._current_result = None
+        self._row_spinning = {}  # row -> QTimer
         self._copy_title_btn.clicked.connect(self._copy_selected_title)
         self._copy_kw_btn.clicked.connect(self._copy_selected_keywords)
         self._table.itemSelectionChanged.connect(self._on_selection)
@@ -693,12 +709,128 @@ class ResultsView(QWidget):
         painter.end()
         return QIcon(QPixmap.fromImage(img))
 
-    def add_result(self, result):
-        self._placeholder.setVisible(False)
-        self._table.setVisible(True)
-
+    def _create_row(self, file_path, title='', show_spinner=False, spinner_frames=0):
+        """Create a table row with file label, spinner, and rerun button."""
+        from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
         row = self._table.rowCount()
         self._table.insertRow(row)
+
+        # File name with rerun button in a container
+        file_container = QWidget()
+        main_layout = QVBoxLayout(file_container)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        top_layout = QHBoxLayout()
+        top_layout.setSpacing(6)
+        file_label = QLabel(os.path.basename(file_path))
+        file_label.setStyleSheet("font-size: 13px;")
+        top_layout.addWidget(file_label, 1)
+        # Spinner label (hidden until processing)
+        spinner_label = QLabel()
+        spinner_label.setFixedSize(16, 16)
+        spinner_label.setAlignment(Qt.AlignCenter)
+        spinner_label.setStyleSheet("color: #3b82f6; font-size: 14px; font-weight: bold;")
+        spinner_label.setVisible(False)
+        top_layout.addWidget(spinner_label)
+        rerun_btn = QPushButton()
+        rerun_btn.setIcon(self._rerun_icon_svg())
+        rerun_btn.setIconSize(QSize(12, 12))
+        rerun_btn.setFixedSize(16, 16)
+        rerun_btn.setToolTip("Regenerate vision + text for this file")
+        rerun_btn.clicked.connect(lambda checked, r=row: self._on_rerun_row(r))
+        top_layout.addWidget(rerun_btn)
+        main_layout.addLayout(top_layout)
+
+        # Store refs for animation
+        file_container.setProperty('spinner_label', spinner_label)
+        file_container.setProperty('rerun_btn', rerun_btn)
+        file_container.setProperty('file_path', file_path)
+        self._table.setCellWidget(row, 0, file_container)
+        hidden_item = QTableWidgetItem("")
+        hidden_item.setData(Qt.UserRole, file_path)
+        self._table.setItem(row, 0, hidden_item)
+
+        title_text = title[:80] + ('…' if len(title) > 80 else '')
+        self._table.setItem(row, 1, QTableWidgetItem(title_text))
+
+        if show_spinner:
+            spinner_label.setVisible(True)
+            spinner_label.setText(spinner_frames[spinner_label] if spinner_frames else '⠋')
+
+        return row
+
+    def add_pending_file(self, file_info):
+        """Add a row for a file waiting to be processed."""
+        self._placeholder.setVisible(False)
+        self._table.setVisible(True)
+        row = self._create_row(file_info.path)
+        self._results.append(None)  # placeholder for result
+        self._file_paths.append(file_info.path)
+        self._row_spinning[row] = False  # track spinner state
+
+    def start_spinner(self, file_path):
+        """Start spinner animation for a file that is being processed."""
+        for i, fp in enumerate(self._file_paths):
+            if fp == file_path:
+                container = self._table.cellWidget(i, 0)
+                if container:
+                    spinner = container.property('spinner_label')
+                    btn = container.property('rerun_btn')
+                    if spinner:
+                        spinner.show()
+                        spinner.setText('⠋')
+                    if btn:
+                        btn.hide()
+                    # Start spinner animation timer
+                    timer = QTimer(self)
+                    frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+                    frame_idx = [0]
+                    timer.timeout.connect(lambda: self._cycle_spinner(i, frames, frame_idx))
+                    timer.start(80)
+                    self._row_spinning[i] = timer
+                return
+
+    def _cycle_spinner(self, row, frames, frame_idx):
+        """Cycle through spinner frames for a given row."""
+        container = self._table.cellWidget(row, 0)
+        if not container:
+            return
+        spinner = container.property('spinner_label')
+        if spinner and spinner.isVisible():
+            frame_idx[0] = (frame_idx[0] + 1) % len(frames)
+            spinner.setText(frames[frame_idx[0]])
+
+    def add_result(self, result):
+        """Add or update a row when processing a file completes."""
+        self._placeholder.setVisible(False)
+        self._table.setVisible(True)
+        # Check if this file already has a row (from pre-population)
+        for i, fp in enumerate(self._file_paths):
+            if fp == result.file_path:
+                # Stop spinner timer
+                timer = self._row_spinning.pop(i, None)
+                if isinstance(timer, QTimer):
+                    timer.stop()
+                    timer.deleteLater()
+                # Update existing row
+                container = self._table.cellWidget(i, 0)
+                if container:
+                    spinner = container.property('spinner_label')
+                    btn = container.property('rerun_btn')
+                    if spinner:
+                        spinner.hide()
+                    if btn:
+                        btn.show()
+                title_text = result.title[:80] + ('…' if len(result.title) > 80 else '')
+                self._table.setItem(i, 1, QTableWidgetItem(title_text))
+                self._results[i] = result
+                return
+
+        # New row (shouldn't happen with pre-population, but keep as fallback)
+        row = self._create_row(result.file_path, result.title)
+        self._results.append(result)
+        self._file_paths.append(result.file_path)
 
         # File name with rerun button in a container
         file_container = QWidget()
