@@ -320,9 +320,10 @@ class BatchOrchestrator:
 
         # Signal UI to show spinner for this file (QueuedConnection marshall to main thread)
         try:
+            logger.debug(f"Emitting file_processing signal for: {file_info.path}")
             self.signals.file_processing.emit(file_info.path)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to emit file_processing signal: {e}")
 
         try:
              # Initialize per-file clients
