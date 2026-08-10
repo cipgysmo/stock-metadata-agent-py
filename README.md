@@ -542,6 +542,25 @@ This is expected if the source files were moved or renamed after processing. The
 
 ## Changelog
 
+### v0.1.7 (2026-08-10)
+- **Metadata fix**: Correct XMP embedding — uses composite tags that work on all JPEGs
+- **Metadata fix**: Keywords now properly replace existing keywords (no accumulation)
+- **Metadata verification**: Post-write read-back validates all 4 fields
+- **Sidecar fix**: Proper XMP `<rdf:Bag>` with `<rdf:li>` elements
+- **Combo arrows fixed**: Native OS arrows on all platforms (was broken on macOS/Windows)
+- **Cleaner logs**: exiftool path logged once instead of per-file
+- **Code cleanup**: Removed unused imports across 15 files, dropped tenacity dependency
+
+### v0.1.6 (2026-08-10)
+- **Instant file list**: Files appear immediately in results table before processing starts
+- **Live spinners**: Animated blue spinner per row shows which files are currently processing
+- **Cancel on Windows**: Fixed button state and semaphore timeouts for instant cancel response
+- **Detail panel refresh**: Auto-refreshes title, keywords, and thumbnail when selected file finishes
+- **Unprocessed file selection**: Shows 'Queued' status instead of crashing
+- **Rerun button**: Only visible after file has been processed
+- **Consistent spacing**: All gaps between panes and sections are now uniform
+- **Vertically centered stats**: Final summary text is properly centered
+
 ### v0.1.5 (2026-08-10)
 - **Model readiness check**: Waits for AI model to load before processing (120s timeout)
 - **Regenerate per file**: Rerun button per row to regenerate vision + text for a single file
