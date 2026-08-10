@@ -503,12 +503,13 @@ class ProcessPage(QWidget):
 
 
     def set_processing_state(self, processing):
-        self._cancel_btn.setEnabled(False)
         if processing:
+            self._cancel_btn.setEnabled(True)
             self._start_btn.setEnabled(False)
             self._folder_input.setEnabled(False)
             self._results_view._placeholder.setText("Processing...")
         else:
+            self._cancel_btn.setEnabled(False)
             # Re-enable Process if a valid folder is still selected
             folder = self._folder_input.text().strip()
             self._start_btn.setEnabled(bool(folder and os.path.isdir(folder)))
