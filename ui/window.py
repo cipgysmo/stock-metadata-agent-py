@@ -372,14 +372,14 @@ class ProcessPage(QWidget):
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(16)
+        layout.setSpacing(12)
 
         # Left panel: title + folder + buttons (fixed width)
         left = QFrame()
         left.setObjectName('card')
         left.setFixedWidth(280)
         left_layout = QVBoxLayout(left)
-        left_layout.setSpacing(16)
+        left_layout.setSpacing(12)
         left_layout.setContentsMargins(16, 16, 16, 16)
 
         # Title row with settings gear
