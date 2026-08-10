@@ -34,34 +34,6 @@ def _get_icon_path():
     return None
 
 
-_combo_arrow_cache = {}
-
-
-def _get_combo_arrow_path(dark_bg):
-    """Generate a small arrow icon PNG file and return its path."""
-    if dark_bg in _combo_arrow_cache:
-        return _combo_arrow_cache[dark_bg]
-
-    import tempfile
-    from PySide6.QtGui import QPainter, QImage, QPolygonF
-    from PySide6.QtCore import QPointF
-
-    img = QImage(12, 12, QImage.Format.Format_ARGB32)
-    img.fill(0)
-    p = QPainter(img)
-    p.setRenderHint(QPainter.RenderHint.Antialiasing)
-    p.setPen(Qt.GlobalColor.transparent)
-    p.setBrush(Qt.GlobalColor.white if dark_bg else Qt.GlobalColor.black)
-    pts = [QPointF(6, 9), QPointF(10, 3), QPointF(2, 3)]
-    p.drawConvexPolygon(QPolygonF(pts))
-    p.end()
-
-    tmp = tempfile.mktemp(suffix='_combo_arrow.png')
-    img.save(tmp)
-    _combo_arrow_cache[dark_bg] = tmp
-    return tmp
-
-
 def _is_dark_mode() -> bool:
     """Detect system dark mode."""
     try:
@@ -91,7 +63,6 @@ def _get_stylesheet():
         INPUT_BG = '#1f1f23'
         TAB_BG = '#27272a'
         TAB_SEL = '#18181b'
-        COMBO_ARROW = _get_combo_arrow_path(True)
     else:
         BG = '#ffffff'
         CARD = '#f8f9fa'
@@ -107,7 +78,6 @@ def _get_stylesheet():
         INPUT_BG = '#ffffff'
         TAB_BG = '#f3f4f6'
         TAB_SEL = '#ffffff'
-        COMBO_ARROW = _get_combo_arrow_path(False)
 
     return f"""
         QMainWindow {{ background-color: {BG}; }}
@@ -207,9 +177,6 @@ def _get_stylesheet():
             padding: 8px 12px; background: {INPUT_BG}; color: {TEXT};
         }}
         QComboBox::drop-down {{ border: none; width: 24px; background: transparent; }}
-        QComboBox::down-arrow {{
-            image: url({COMBO_ARROW});
-        }}
         QComboBox QAbstractItemView {{
             background: {INPUT_BG}; color: {TEXT}; selection-background-color: {ACCENT};
             selection-color: white; border: 1px solid {BORDER}; border-radius: 8px;

@@ -115,14 +115,19 @@ class MetadataWriter:
         cmd.extend(['-Headline=' + title])
         cmd.extend(['-Caption-Abstract=' + description])
 
-        # Keywords - exiftool accepts multiple -Keywords
+        # Clear existing IPTC Keywords, then add new ones
+        cmd.extend(['-Keywords='])
         for kw in keywords:
             cmd.extend([f'-Keywords={kw}'])
 
-        # XMP fields
-        cmd.extend(['-dc:Title=' + title])
-        cmd.extend(['-dc:description=' + description])
-        cmd.extend([f'-dc:Subject={",".join(keywords)}'])
+        # XMP fields - use composite tags (dc:Title/dc:description don't work on fresh files)
+        cmd.extend(['-Title=' + title])
+        cmd.extend(['-Description=' + description])
+
+        # Clear existing XMP Subject, then add new ones
+        cmd.extend(['-Subject='])
+        for kw in keywords:
+            cmd.extend([f'-Subject={kw}'])
 
         # Remove empty string from command
         cmd = [arg for arg in cmd if arg]
@@ -133,7 +138,7 @@ class MetadataWriter:
             )
             if result.returncode == 0:
                 logger.debug(f"Metadata written to {file_path}")
-                return True
+                return self._verify_write(file_path, keywords)
             else:
                 logger.error(f"exiftool error for {file_path}: {result.stderr[:500]}")
                 return False
@@ -147,16 +152,43 @@ class MetadataWriter:
             logger.error(f"Error writing metadata to {file_path}: {e}")
             return False
 
+    def _verify_write(self, file_path: str, expected_keywords: list[str]) -> bool:
+        """Read back metadata to verify it was written correctly."""
+        try:
+            cmd = [self._exiftool, '-Keywords', '-Subject',
+                   '-Headline', '-Caption-Abstract', '-s3', file_path]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            if result.returncode != 0:
+                logger.warning(f"Could not verify metadata for {file_path}")
+                return True
+            output = result.stdout.strip()
+            if not output:
+                logger.warning(f"No metadata read back from {file_path}")
+                return False
+            lines = output.split('\n')
+            if len(lines) < 4:
+                logger.warning(f"Incomplete metadata in {file_path}: {output}")
+                return False
+            return True
+        except Exception as e:
+            logger.warning(f"Verification failed for {file_path}: {e}")
+            return True
+
     def write_keywords_only(self, file_path: str, keywords: list[str]) -> bool:
         """Write only keywords, preserving existing metadata."""
         cmd = [self._exiftool, '-overwrite_original', file_path]
+        cmd.extend(['-Keywords='])
         for kw in keywords:
             cmd.extend([f'-Keywords={kw}'])
-        cmd.extend([f'-dc:Subject={",".join(keywords)}'])
+        cmd.extend(['-Subject='])
+        for kw in keywords:
+            cmd.extend([f'-Subject={kw}'])
 
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-            return result.returncode == 0
+            if result.returncode != 0:
+                return False
+            return self._verify_write(file_path, keywords)
         except Exception as e:
             logger.error(f"Error writing keywords to {file_path}: {e}")
             return False

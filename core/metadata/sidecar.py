@@ -29,8 +29,10 @@ class XmpSidecarWriter:
         description = self._xml_escape(description)
         keywords_escaped = [self._xml_escape(k) for k in keywords]
 
-        # Build keyword list as semicolon-separated for XMP
-        keywords_str = '; '.join(keywords_escaped)
+        # Build proper XMP array (rdf:Bag with rdf:li elements)
+        keyword_items = ''.join(
+            f'      <rdf:li>{kw}</rdf:li>\n' for kw in keywords_escaped
+        )
 
         xmp_content = f"""<?xpacket begin="\xef\xbb\xbf" id="W5M0MpCehiHzreSzNTczkc9d"?>
 <x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="StockMetadataAgent">
@@ -41,7 +43,10 @@ class XmpSidecarWriter:
     xmlns:xmp="http://ns.adobe.com/xap/1.0/">
    <dc:title>{title}</dc:title>
    <dc:description>{description}</dc:description>
-   <dc:Subject>{keywords_str}</dc:Subject>
+   <dc:Subject>
+    <rdf:Bag>
+{keyword_items}    </rdf:Bag>
+   </dc:Subject>
    <xmp:Rating>{0}</xmp:Rating>
    <Iptc4xmpCore:ObjectName>{title}</Iptc4xmpCore:ObjectName>
    <Iptc4xmpCore:CaptionAbstract>{description}</Iptc4xmpCore:CaptionAbstract>
