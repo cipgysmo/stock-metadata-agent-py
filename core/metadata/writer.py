@@ -43,9 +43,11 @@ def _find_and_cache_exiftool() -> str:
         abs_path = os.path.abspath(path)
         if os.path.exists(abs_path):
             _CACHED_EXIFTOOL_PATH = abs_path
+            logger.info(f"MetadataWriter using exiftool: {abs_path}")
             return abs_path
 
     _CACHED_EXIFTOOL_PATH = 'exiftool'
+    logger.info("MetadataWriter using system exiftool")
     return 'exiftool'
 
 
@@ -54,7 +56,6 @@ class MetadataWriter:
 
     def __init__(self, exiftool_path: str = ''):
         self._exiftool = exiftool_path or _find_and_cache_exiftool()
-        logger.info(f"MetadataWriter using exiftool: {self._exiftool}")
 
     def _find_exiftool(self) -> str:
         """Find exiftool: bundled first, then system."""
