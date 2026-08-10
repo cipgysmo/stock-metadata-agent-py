@@ -227,8 +227,8 @@ class MainWindow(QMainWindow):
         )
         self._orchestrator.set_progress_callback(self._on_progress)
         self._orchestrator.set_file_callback(self._on_file_result)
-        # Connect spinner signal
-        self._orchestrator.signals.file_processing.connect(self._on_file_processing)
+        # Connect spinner signal (queued for thread safety)
+        self._orchestrator.signals.file_processing.connect(self._on_file_processing, Qt.ConnectionType.QueuedConnection)
 
         self._worker_thread = QThread()
         self._worker = _BatchWorker(self._orchestrator, folder_path)

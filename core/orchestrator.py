@@ -204,11 +204,6 @@ class BatchOrchestrator:
             for f in files:
                 future = pool.submit(self._process_file, f, duplicate_detector)
                 futures[future] = f
-                # Signal UI to show spinner for this file
-                try:
-                    self.signals.file_processing.emit(f.path)
-                except Exception:
-                    pass
 
             # Polling loop — checks abort flag frequently instead of blocking on as_completed
             remaining = list(futures.keys())
@@ -322,6 +317,13 @@ class BatchOrchestrator:
         fname = os.path.basename(file_info.path)
         timings = {}
         t0 = time.time()
+
+        # Signal UI to show spinner for this file (safe from worker thread)
+        try:
+            from PySide6.QtCore import QTimer
+            QTimer.singleShot(0, lambda fp=file_info.path: self.signals.file_processing.emit(fp))
+        except Exception:
+            pass
 
         try:
              # Initialize per-file clients
