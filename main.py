@@ -176,7 +176,6 @@ def _get_stylesheet():
             border: 1px solid {BORDER}; border-radius: 8px;
             padding: 8px 12px; background: {INPUT_BG}; color: {TEXT};
         }}
-        QComboBox::drop-down {{ border: none; width: 24px; background: transparent; }}
         QComboBox QAbstractItemView {{
             background: {INPUT_BG}; color: {TEXT}; selection-background-color: {ACCENT};
             selection-color: white; border: 1px solid {BORDER}; border-radius: 8px;
