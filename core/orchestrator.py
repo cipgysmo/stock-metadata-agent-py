@@ -814,7 +814,7 @@ class BatchOrchestrator:
 
         return result
 
-    def _wait_for_model(self, message: str, timeout: int = 180) -> None:
+    def _wait_for_model(self, message: str, timeout: int = 120) -> None:
         """Wait for the AI model to be ready before processing."""
         self._report_progress(0, 0, message)
         vision_client, text_client, _ = self._get_clients()
