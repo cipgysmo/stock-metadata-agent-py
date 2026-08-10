@@ -349,8 +349,13 @@ class BatchOrchestrator:
                     try:
                         if self._abort.is_set():
                             return
-                        if not self._vision_semaphore.acquire(timeout=120):
-                            raise TimeoutError("Vision semaphore timeout")
+                        # Acquire semaphore with short timeout, check abort periodically
+                        acquired = False
+                        while not acquired and not self._abort.is_set():
+                            if self._vision_semaphore.acquire(timeout=5):
+                                acquired = True
+                        if not acquired:
+                            return
                         try:
                             vision_result[0] = self._analyze_image(file_info, vision_client, context)
                         finally:
@@ -369,6 +374,8 @@ class BatchOrchestrator:
                 timings['vision'] = time.time() - t
             else:
                 # Video: sequential (GPS + vision)
+                if self._abort.is_set():
+                    return result
                 gps_validator = GPSValidator()
                 gps_info = gps_validator.extract_gps(file_info.path)
                 timings['gps'] = time.time() - t
@@ -377,8 +384,13 @@ class BatchOrchestrator:
                 vision = VisionAnalysis()
                 if self._abort.is_set():
                     return result
-                if not self._vision_semaphore.acquire(timeout=120):
-                    raise TimeoutError("Vision semaphore timeout - server overloaded")
+                # Acquire semaphore with short timeout, check abort periodically
+                acquired = False
+                while not acquired and not self._abort.is_set():
+                    if self._vision_semaphore.acquire(timeout=5):
+                        acquired = True
+                if not acquired:
+                    return result
                 try:
                     vision, movement = self._analyze_video(file_info, vision_client, context)
                 finally:
@@ -437,8 +449,13 @@ class BatchOrchestrator:
             t = time.time()
             if self._abort.is_set():
                 return result
-            if not self._text_semaphore.acquire(timeout=120):
-                raise TimeoutError("Text semaphore timeout - server overloaded")
+            # Acquire semaphore with short timeout, check abort periodically
+            acquired = False
+            while not acquired and not self._abort.is_set():
+                if self._text_semaphore.acquire(timeout=5):
+                    acquired = True
+            if not acquired:
+                return result
             try:
                 generator = MetadataGenerator(text_client, max_tokens=1500, fallback_client=fallback_client)
                 # Extract date from EXIF for editorial content
