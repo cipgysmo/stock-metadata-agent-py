@@ -262,6 +262,8 @@ class MainWindow(QMainWindow):
         """Show spinner for a file that just started processing."""
         if not self.isVisible():
             return
+        import logging
+        logging.getLogger(__name__).info(f"Starting spinner for: {file_path}")
         self._process_panel._results_view.start_spinner(file_path)
 
     def _on_file_result(self, result):
@@ -765,6 +767,12 @@ class ResultsView(QWidget):
         self._placeholder.setVisible(False)
         self._table.setVisible(True)
         row = self._create_row(file_info.path)
+        # Hide rerun button until file is processed
+        container = self._table.cellWidget(row, 0)
+        if container:
+            btn = container.property('rerun_btn')
+            if btn:
+                btn.hide()
         self._results.append(None)  # placeholder for result
         self._file_paths.append(file_info.path)
         self._row_spinning[row] = False  # track spinner state
@@ -786,7 +794,9 @@ class ResultsView(QWidget):
                     timer = QTimer(self)
                     frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
                     frame_idx = [0]
-                    timer.timeout.connect(lambda: self._cycle_spinner(i, frames, frame_idx))
+                    # Capture i in closure correctly
+                    row_capture = i
+                    timer.timeout.connect(lambda: self._cycle_spinner(row_capture, frames, frame_idx))
                     timer.start(80)
                     self._row_spinning[i] = timer
                 return
@@ -820,6 +830,9 @@ class ResultsView(QWidget):
                     btn = container.property('rerun_btn')
                     if spinner:
                         spinner.hide()
+                    if btn:
+                        btn.show()
+                    # Show rerun button now that file is processed
                     if btn:
                         btn.show()
                 title_text = result.title[:80] + ('…' if len(result.title) > 80 else '')

@@ -318,10 +318,9 @@ class BatchOrchestrator:
         timings = {}
         t0 = time.time()
 
-        # Signal UI to show spinner for this file (safe from worker thread)
+        # Signal UI to show spinner for this file (QueuedConnection marshall to main thread)
         try:
-            from PySide6.QtCore import QTimer
-            QTimer.singleShot(0, lambda fp=file_info.path: self.signals.file_processing.emit(fp))
+            self.signals.file_processing.emit(file_info.path)
         except Exception:
             pass
 
