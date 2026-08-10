@@ -461,12 +461,15 @@ class ProcessPage(QWidget):
         self._stat_items = []
         for label, key in [("Processed", "processed"), ("Total", "total_time"), ("Per File", "avg_time")]:
             col = QVBoxLayout()
+            col.setSpacing(2)
+            col.setAlignment(Qt.AlignVCenter)
             lbl = QLabel(label)
             lbl.setStyleSheet("font-size: 11px; font-weight: 600;")
+            lbl.setAlignment(Qt.AlignCenter)
             col.addWidget(lbl)
-            col.setSpacing(2)
             val = QLabel("—")
             val.setStyleSheet("font-size: 14px; font-weight: 700;")
+            val.setAlignment(Qt.AlignCenter)
             col.addWidget(val)
             self._stat_items.append((key, val))
             stats_layout.addLayout(col, 0)
