@@ -840,11 +840,15 @@ class BatchOrchestrator:
 
     def _wait_for_model(self, message: str, timeout: int = 120) -> None:
         """Wait for the AI model to be ready before processing."""
-        self._report_progress(0, 0, message)
         vision_client, text_client, _ = self._get_clients()
+        # Use short timeout per poll so we don't block while model loads
+        text_client.timeout = 10
+        vision_client.timeout = 10
         t0 = time.time()
+        elapsed = 0
         # Wait for text model first (usually faster to load)
         while time.time() - t0 < timeout:
+            self._report_progress(0, 0, f"{message} ({elapsed}s)")
             try:
                 resp = text_client.chat_completion(
                     messages=[{'role': 'user', 'content': 'ok'}],
@@ -855,11 +859,13 @@ class BatchOrchestrator:
                     logger.info("Text model is ready")
                     break
             except Exception as e:
+                elapsed = int(time.time() - t0)
                 logger.debug(f"Text model not ready: {e}")
             time.sleep(3)
-            self._report_progress(0, 0, message)
+        elapsed = int(time.time() - t0)
         # Wait for vision model
         while time.time() - t0 < timeout:
+            self._report_progress(0, 0, f"{message} ({elapsed}s)")
             try:
                 resp = vision_client.chat_completion(
                     messages=[{'role': 'user', 'content': 'ok'}],
@@ -870,9 +876,9 @@ class BatchOrchestrator:
                     logger.info("Vision model is ready")
                     break
             except Exception as e:
+                elapsed = int(time.time() - t0)
                 logger.debug(f"Vision model not ready: {e}")
             time.sleep(3)
-            self._report_progress(0, 0, message)
 
     def _report_progress(self, current: int, total: int, message: str) -> None:
         """Report progress update."""
