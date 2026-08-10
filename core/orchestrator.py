@@ -166,6 +166,9 @@ class BatchOrchestrator:
 
         logger.info(f"Starting batch processing: {root_path}")
 
+        # Phase 0: Wait for model to be ready
+        self._wait_for_model("Waiting for AI model to load...")
+
         # Phase 1: Scan
         self._report_progress(0, 0, "Scanning files...")
         scanner = Scanner(root_path)
@@ -810,6 +813,72 @@ class BatchOrchestrator:
         )
 
         return result
+
+    def _wait_for_model(self, message: str, timeout: int = 120) -> None:
+        """Wait for the AI model to be ready before processing."""
+        self._report_progress(0, 0, message)
+        client = AIClient(
+            base_url=self.settings.vision_endpoint,
+            api_key=self.settings.vision_api_key,
+            model=self.settings.vision_model,
+            timeout=30,
+        )
+        t0 = time.time()
+        while True:
+            if time.time() - t0 > timeout:
+                logger.error(f"Model readiness check timed out after {timeout}s")
+                break
+            # Try a small completion to check if model is loaded
+            try:
+                resp = client.chat_completion(
+                    messages=[{'role': 'user', 'content': 'ok'}],
+                    max_tokens=1,
+                    temperature=0.1,
+                )
+                if resp.get('choices'):
+                    logger.info("AI model is ready")
+                    break
+            except Exception as e:
+                logger.debug(f"Model not ready yet: {e}")
+                time.sleep(2)
+            self._report_progress(0, 0, message)
+        client.close()
+
+    def _wait_for_model(self, message: str, timeout: int = 180) -> None:
+        """Wait for the AI model to be ready before processing."""
+        self._report_progress(0, 0, message)
+        vision_client, text_client, _ = self._get_clients()
+        t0 = time.time()
+        # Wait for text model first (usually faster to load)
+        while time.time() - t0 < timeout:
+            try:
+                resp = text_client.chat_completion(
+                    messages=[{'role': 'user', 'content': 'ok'}],
+                    max_tokens=1,
+                    temperature=0.1,
+                )
+                if resp.get('choices'):
+                    logger.info("Text model is ready")
+                    break
+            except Exception as e:
+                logger.debug(f"Text model not ready: {e}")
+            time.sleep(3)
+            self._report_progress(0, 0, message)
+        # Wait for vision model
+        while time.time() - t0 < timeout:
+            try:
+                resp = vision_client.chat_completion(
+                    messages=[{'role': 'user', 'content': 'ok'}],
+                    max_tokens=1,
+                    temperature=0.1,
+                )
+                if resp.get('choices'):
+                    logger.info("Vision model is ready")
+                    break
+            except Exception as e:
+                logger.debug(f"Vision model not ready: {e}")
+            time.sleep(3)
+            self._report_progress(0, 0, message)
 
     def _report_progress(self, current: int, total: int, message: str) -> None:
         """Report progress update."""
