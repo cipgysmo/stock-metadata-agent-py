@@ -12,18 +12,18 @@ from typing import Callable
 from PySide6.QtCore import QObject, Signal
 
 from config.constants import (
-    IMAGE_EXTENSIONS, SETTINGS_DIR, EMBEDDABLE_VIDEO_FORMATS, SIDECAR_VIDEO_FORMATS,
+    SIDECAR_VIDEO_FORMATS,
     MIN_KEYWORD_COUNT,
 )
 from core.scanner import Scanner, MediaFile
 from core.location.parser import LocationParser, Location
-from core.location.gps import GPSValidator, GPSInfo
+from core.location.gps import GPSValidator
 from core.metadata.writer import MetadataWriter
 from core.metadata.sidecar import XmpSidecarWriter
 from core.video.extractor import VideoFrameExtractor
 from core.video.movement import MovementDetector
-from core.quality.scorer import QualityValidator, QualityScore
-from core.duplicate import DuplicateDetector, DuplicateGroup
+from core.quality.scorer import QualityValidator
+from core.duplicate import DuplicateDetector
 from ai.client import AIClient
 from ai.vision import VisionAnalyzer, VisionAnalysis
 from ai.generator import MetadataGenerator, GeneratedMetadata

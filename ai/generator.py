@@ -9,10 +9,9 @@ from dataclasses import dataclass, field
 from ai.client import AIClient
 from ai.vision import VisionAnalysis
 from config.constants import (
-    BANNED_WORDS, BANNED_KEYWORDS,
+    BANNED_KEYWORDS,
     MAX_KEYWORD_COUNT,
     MAX_TITLE_LENGTH,
-    MIN_KEYWORD_COUNT,
     MIN_TITLE_LENGTH,
     TOP_KEYWORD_COUNT,
 )

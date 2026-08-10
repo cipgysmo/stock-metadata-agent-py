@@ -4,7 +4,7 @@ import os
 import sqlite3
 import logging
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from config.constants import MEMORY_DB_FILE
 
 logger = logging.getLogger(__name__)

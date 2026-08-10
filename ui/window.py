@@ -1,17 +1,16 @@
-import functools
 import os
 import sys
 from PySide6.QtWidgets import (
     QMainWindow, QVBoxLayout, QHBoxLayout,
     QProgressBar, QLabel, QFileDialog, QMessageBox,
-    QSplitter, QStatusBar, QWidget, QFrame, QTableWidget, QTableWidgetItem,
-    QLineEdit, QPushButton, QSpinBox, QComboBox, QHeaderView, QDialog, QCheckBox
+    QWidget, QFrame, QTableWidget, QTableWidgetItem,
+    QLineEdit, QPushButton, QComboBox, QHeaderView, QDialog, QCheckBox
 )
-from PySide6.QtCore import Qt, QThread, Signal, QTimer, QObject, QSize, QByteArray, Property, QRect, QRunnable, QThreadPool
+from PySide6.QtCore import Qt, QThread, Signal, QTimer, QObject, QSize, QByteArray, QRect, QRunnable, QThreadPool
 from PySide6.QtGui import QFont, QPixmap, QImage, QIcon, QPainter
 
 from config.settings import Settings
-from core.orchestrator import BatchOrchestrator, BatchReport, FileResult
+from core.orchestrator import BatchOrchestrator, BatchReport
 from core.scanner import Scanner
 from export.csv import CsvExporter
 from ui.panels.settings import SettingsPanel

@@ -9,7 +9,6 @@ from typing import Any
 
 import requests
 from PIL import Image
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, retry_if_result
 
 logger = logging.getLogger(__name__)
 

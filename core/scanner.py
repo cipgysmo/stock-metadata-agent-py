@@ -1,9 +1,8 @@
 """Recursive folder scanner for media files."""
 
 import os
-from dataclasses import dataclass, field
-from typing import Generator
-from config.constants import IMAGE_EXTENSIONS, VIDEO_EXTENSIONS, SUPPORTED_EXTENSIONS
+from dataclasses import dataclass
+from config.constants import IMAGE_EXTENSIONS, SUPPORTED_EXTENSIONS
 
 
 @dataclass

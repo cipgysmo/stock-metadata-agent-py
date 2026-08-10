@@ -4,10 +4,10 @@ import os
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-    QLabel, QLineEdit, QFileDialog, QProgressBar, QFrame,
+    QLabel, QLineEdit, QFileDialog, QFrame,
     QComboBox, QSpinBox
 )
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Signal
 
 
 class BatchPanel(QWidget):

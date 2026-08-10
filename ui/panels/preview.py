@@ -1,9 +1,9 @@
 """Metadata preview panel showing per-file results."""
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+    QWidget, QVBoxLayout, QLabel,
     QTextEdit, QTableWidget, QTableWidgetItem,
-    QHeaderView, QSplitter, QGroupBox, QTabWidget
+    QHeaderView, QGroupBox
 )
 from PySide6.QtCore import Qt
 from core.orchestrator import FileResult

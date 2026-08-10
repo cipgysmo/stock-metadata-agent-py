@@ -5,7 +5,7 @@ import os
 import logging
 from typing import Any
 
-from config.constants import DEFAULT_SETTINGS, SETTINGS_FILE, SETTINGS_DIR
+from config.constants import DEFAULT_SETTINGS, SETTINGS_FILE
 
 logger = logging.getLogger(__name__)
 

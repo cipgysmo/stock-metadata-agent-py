@@ -1,6 +1,5 @@
 """Unit tests for Stock Metadata Agent."""
 
-import json
 import os
 import tempfile
 import shutil
@@ -14,10 +13,9 @@ from config.constants import (
     MIN_TITLE_LENGTH, MIN_KEYWORD_COUNT, MAX_KEYWORD_COUNT,
 )
 from config.settings import Settings
-from core.scanner import Scanner, MediaFile
+from core.scanner import Scanner
 from core.location.parser import LocationParser, Location
-from core.location.gps import GPSInfo
-from core.quality.scorer import QualityValidator, QualityScore
+from core.quality.scorer import QualityValidator
 from core.duplicate import DuplicateDetector
 from core.report import ReportGenerator
 from ai.vision import VisionAnalysis

@@ -5,7 +5,6 @@ import os
 import subprocess
 import logging
 from dataclasses import dataclass
-from typing import Generator
 
 logger = logging.getLogger(__name__)
 

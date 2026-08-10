@@ -3,8 +3,8 @@
 import logging
 import json
 import time
-from dataclasses import dataclass, field, asdict
-from config.constants import PHOTO_CATEGORIES, DETECTABLE_OBJECTS, VIDEO_MOVEMENTS
+from dataclasses import dataclass, field
+from config.constants import PHOTO_CATEGORIES, VIDEO_MOVEMENTS
 from ai.client import AIClient
 
 logger = logging.getLogger(__name__)

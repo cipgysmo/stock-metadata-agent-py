@@ -2,13 +2,12 @@
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QLineEdit, QPushButton, QFormLayout, QGroupBox,
-    QMessageBox, QSpinBox, QCheckBox, QComboBox, QFrame
+    QLineEdit, QPushButton, QFormLayout,
+    QCheckBox, QComboBox, QFrame
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QWheelEvent
 from config.settings import Settings
-from config.constants import DEFAULT_SETTINGS
 
 
 class _WheelSpinBox(QLineEdit):
