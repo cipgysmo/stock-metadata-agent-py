@@ -807,29 +807,67 @@ class ResultsView(QWidget):
 
     def stop_all_spinners(self):
         """Stop all spinning timers and hide spinners (called on batch end/cancel)."""
+        # Stop batch processing spinners
         for row, timer in self._row_spinning.items():
             if isinstance(timer, QTimer):
-                timer.stop()
-                timer.deleteLater()
+                try:
+                    timer.stop()
+                    timer.deleteLater()
+                except Exception:
+                    pass
             container = self._table.cellWidget(row, 0)
             if container:
-                spinner = container.property('spinner_label')
-                if spinner:
-                    spinner.hide()
-                btn = container.property('rerun_btn')
-                if btn:
-                    btn.show()
+                try:
+                    spinner = container.property('spinner_label')
+                    if spinner:
+                        spinner.hide()
+                except Exception:
+                    pass
+                try:
+                    btn = container.property('rerun_btn')
+                    if btn:
+                        btn.show()
+                except Exception:
+                    pass
         self._row_spinning.clear()
+        # Stop rerun spinners
+        for row, busy in list(self._rerun_busy.items()):
+            if isinstance(busy, dict) and 'timer' in busy:
+                timer = busy['timer']
+                try:
+                    timer.stop()
+                    timer.deleteLater()
+                except Exception:
+                    pass
+            container = self._table.cellWidget(row, 0)
+            if container:
+                try:
+                    spinner = container.property('spinner_label')
+                    if spinner:
+                        spinner.hide()
+                except Exception:
+                    pass
+                try:
+                    btn = container.property('rerun_btn')
+                    if btn:
+                        btn.show()
+                except Exception:
+                    pass
+        self._rerun_busy.clear()
 
     def _cycle_spinner(self, row, frames, frame_idx):
         """Cycle through spinner frames for a given row."""
-        container = self._table.cellWidget(row, 0)
-        if not container:
-            return
-        spinner = container.property('spinner_label')
-        if spinner and spinner.isVisible():
-            frame_idx[0] = (frame_idx[0] + 1) % len(frames)
-            spinner.setText(frames[frame_idx[0]])
+        try:
+            container = self._table.cellWidget(row, 0)
+            if not container:
+                return
+            spinner = container.property('spinner_label')
+            if spinner and spinner.isVisible():
+                frame_idx[0] = (frame_idx[0] + 1) % len(frames)
+                spinner.setText(frames[frame_idx[0]])
+        except RuntimeError:
+            # Widget already deleted, do nothing
+            pass
 
     def add_result(self, result):
         """Add or update a row when processing a file completes."""
@@ -1008,9 +1046,20 @@ class ResultsView(QWidget):
         spinner = busy['spinner']
         if not spinner:
             return
-        frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
-        busy['frame'] = (busy['frame'] + 1) % len(frames)
-        spinner.setText(frames[busy['frame']])
+        try:
+            frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+            busy['frame'] = (busy['frame'] + 1) % len(frames)
+            spinner.setText(frames[busy['frame']])
+        except RuntimeError:
+            # Widget already deleted, stop the timer
+            if 'timer' in busy:
+                timer = busy['timer']
+                try:
+                    timer.stop()
+                    timer.deleteLater()
+                except Exception:
+                    pass
+            self._rerun_busy.pop(row, None)
 
     def _on_rerun_finished(self, result, row):
         """Handle rerun completion: update table, detail, CSV, and re-embed metadata."""
@@ -1065,7 +1114,8 @@ class ResultsView(QWidget):
         from export.csv import CsvExporter
         exporter = CsvExporter()
         csv_path = os.path.join(self.main_window._current_folder, 'metadata_export.csv')
-        exporter.export_batch(self._results, csv_path)
+        # Filter out None (unprocessed) results
+        exporter.export_batch([r for r in self._results if r is not None], csv_path)
 
     def _on_double_click(self, row, col):
         if col != 0:
