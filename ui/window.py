@@ -218,7 +218,7 @@ class MainWindow(QMainWindow):
             self._process_panel._results_view._placeholder.setVisible(False)
             self._process_panel._results_view._table.setVisible(True)
             for f in files:
-                self._process_panel.add_pending_file(f)
+                self._process_panel._results_view.add_pending_file(f)
             self._progress_bar.setFormat(f"Found {len(files)} files — starting...")
 
         self._orchestrator = BatchOrchestrator(
