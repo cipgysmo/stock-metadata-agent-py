@@ -542,6 +542,11 @@ This is expected if the source files were moved or renamed after processing. The
 
 ## Changelog
 
+### v0.1.8 (2026-08-10)
+- **Model readiness fix**: Only polls local endpoints (localhost, LAN), skips cloud endpoints
+- **Shorter poll timeout**: 10s per poll instead of 120s, preventing hangs while model loads
+- **Progress feedback**: Shows elapsed seconds during model loading
+
 ### v0.1.7 (2026-08-10)
 - **Metadata fix**: Correct XMP embedding — uses composite tags that work on all JPEGs
 - **Metadata fix**: Keywords now properly replace existing keywords (no accumulation)
