@@ -785,18 +785,22 @@ class ResultsView(QWidget):
         if not vision:
             self._rerun_busy[row] = False
             return
-        # Disable the button and show spinner indicator
+        # Disable the button and start spinning animation
         container = self._table.cellWidget(row, 0)
         if container:
             for i in range(container.layout().count()):
                 w = container.layout().itemAt(i).widget()
                 if isinstance(w, QPushButton):
                     w.setEnabled(False)
-                    w.setIcon(QIcon())  # clear icon
-                    w.setStyleSheet("color: #3b82f6; font-size: 14px; font-weight: bold;")
-                    w.setText("⟳")  # Unicode spinning arrow
                     break
-        self._rerun_busy[row] = True
+        # Store button ref and angle for animation
+        self._rerun_busy[row] = {'button': w, 'angle': 0}
+        # Start spin timer: rotate icon every 60ms
+        timer = QTimer(self)
+        timer.timeout.connect(lambda: self._spin_rerun_icon(row))
+        timer.start(60)
+        # Store timer reference so we can stop it later
+        self._rerun_busy[row]['timer'] = timer
         # Run in background thread using QRunnable (Qt-native, safe lifecycle)
         from PySide6.QtCore import QRunnable, QThreadPool
         runnable = _RerunRunnable(
@@ -809,11 +813,50 @@ class ResultsView(QWidget):
         runnable.setAutoDelete(True)
         QThreadPool.globalInstance().start(runnable)
 
+    def _spin_rerun_icon(self, row):
+        """Rotate the rerun icon for a spinning animation."""
+        busy = self._rerun_busy.get(row)
+        if not busy or 'button' not in busy:
+            return
+        btn = busy['button']
+        if not btn:
+            return
+        busy['angle'] = (busy['angle'] + 30) % 360
+        angle = busy['angle']
+        stroke = '#3b82f6'  # blue for active state
+        svg = (
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{stroke}" '
+            'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+            '<path d="M21 2v6h-6"/>'
+            '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>'
+            '<path d="M3 22v-6h6"/>'
+            '<path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>'
+            '</svg>'
+        )
+        from PySide6.QtGui import QPainter
+        from PySide6.QtSvg import QSvgRenderer
+        from PySide6.QtCore import QByteArray
+        renderer = QSvgRenderer(QByteArray(svg.encode()))
+        img = QImage(24, 24, QImage.Format.Format_ARGB32)
+        img.fill(0)
+        painter = QPainter(img)
+        painter.translate(12, 12)
+        painter.rotate(angle)
+        painter.translate(-12, -12)
+        renderer.render(painter)
+        painter.end()
+        btn.setIcon(QIcon(QPixmap.fromImage(img)))
+
     def _on_rerun_finished(self, result, row):
         """Handle rerun completion: update table, detail, CSV, and re-embed metadata."""
         if not result:
             return
-        self._rerun_busy.pop(row, None)
+        # Stop spinning timer
+        busy = self._rerun_busy.pop(row, None)
+        if busy and 'timer' in busy:
+            timer = busy['timer']
+            timer.stop()
+            timer.deleteLater()
         # Re-enable the button
         container = self._table.cellWidget(row, 0)
         if container:
