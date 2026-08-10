@@ -838,47 +838,86 @@ class BatchOrchestrator:
 
         return result
 
+    @staticmethod
+    def _is_local_endpoint(url: str) -> bool:
+        """Check if a URL points to a local server (localhost, 127.0.0.1, LAN)."""
+        from urllib.parse import urlparse
+        host = urlparse(url).hostname
+        return (
+            host in ('localhost', '127.0.0.1', '::1')
+            or host.startswith('192.168.')
+            or host.startswith('10.')
+            or host.startswith('172.16.')
+            or host.startswith('172.17.')
+            or host.startswith('172.18.')
+            or host.startswith('172.19.')
+            or host.startswith('172.2')
+            or host.startswith('172.3')
+            or host.startswith('172.30.')
+            or host.startswith('172.31.')
+        )
+
     def _wait_for_model(self, message: str, timeout: int = 120) -> None:
-        """Wait for the AI model to be ready before processing."""
+        """Wait for the AI model to be ready before processing.
+
+        Only polls local endpoints (localhost, LAN). Cloud endpoints
+        (OpenAI, OpenRouter, Azure, etc.) are assumed always available.
+        """
         vision_client, text_client, _ = self._get_clients()
+
+        text_local = self._is_local_endpoint(self.settings.text_endpoint)
+        vision_local = self._is_local_endpoint(self.settings.vision_endpoint)
+
+        if not text_local and not vision_local:
+            logger.debug("Cloud endpoints detected, skipping model readiness check")
+            return
+
         # Use short timeout per poll so we don't block while model loads
-        text_client.timeout = 10
-        vision_client.timeout = 10
+        if text_local:
+            text_client.timeout = 10
+        if vision_local:
+            vision_client.timeout = 10
         t0 = time.time()
         elapsed = 0
         # Wait for text model first (usually faster to load)
-        while time.time() - t0 < timeout:
-            self._report_progress(0, 0, f"{message} ({elapsed}s)")
-            try:
-                resp = text_client.chat_completion(
-                    messages=[{'role': 'user', 'content': 'ok'}],
-                    max_tokens=1,
-                    temperature=0.1,
-                )
-                if resp.get('choices'):
-                    logger.info("Text model is ready")
-                    break
-            except Exception as e:
-                elapsed = int(time.time() - t0)
-                logger.debug(f"Text model not ready: {e}")
-            time.sleep(3)
+        if text_local:
+            while time.time() - t0 < timeout:
+                self._report_progress(0, 0, f"{message} ({elapsed}s)")
+                try:
+                    resp = text_client.chat_completion(
+                        messages=[{'role': 'user', 'content': 'ok'}],
+                        max_tokens=1,
+                        temperature=0.1,
+                    )
+                    if resp.get('choices'):
+                        logger.info("Text model is ready")
+                        break
+                except Exception as e:
+                    elapsed = int(time.time() - t0)
+                    logger.debug(f"Text model not ready: {e}")
+                time.sleep(3)
+        else:
+            logger.info("Text endpoint is cloud, skipping readiness check")
         elapsed = int(time.time() - t0)
         # Wait for vision model
-        while time.time() - t0 < timeout:
-            self._report_progress(0, 0, f"{message} ({elapsed}s)")
-            try:
-                resp = vision_client.chat_completion(
-                    messages=[{'role': 'user', 'content': 'ok'}],
-                    max_tokens=1,
-                    temperature=0.1,
-                )
-                if resp.get('choices'):
-                    logger.info("Vision model is ready")
-                    break
-            except Exception as e:
-                elapsed = int(time.time() - t0)
-                logger.debug(f"Vision model not ready: {e}")
-            time.sleep(3)
+        if vision_local:
+            while time.time() - t0 < timeout:
+                self._report_progress(0, 0, f"{message} ({elapsed}s)")
+                try:
+                    resp = vision_client.chat_completion(
+                        messages=[{'role': 'user', 'content': 'ok'}],
+                        max_tokens=1,
+                        temperature=0.1,
+                    )
+                    if resp.get('choices'):
+                        logger.info("Vision model is ready")
+                        break
+                except Exception as e:
+                    elapsed = int(time.time() - t0)
+                    logger.debug(f"Vision model not ready: {e}")
+                time.sleep(3)
+        else:
+            logger.info("Vision endpoint is cloud, skipping readiness check")
 
     def _report_progress(self, current: int, total: int, message: str) -> None:
         """Report progress update."""
