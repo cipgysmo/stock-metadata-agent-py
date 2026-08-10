@@ -150,9 +150,9 @@ class MetadataGenerator:
                 f"Output valid JSON only."
             )
 
+        # Merge system + user — many models (Qwen, OMLX) ignore the system role
         messages = [
-            {'role': 'system', 'content': METADATA_SYSTEM_PROMPT},
-            {'role': 'user', 'content': user_text},
+            {'role': 'user', 'content': f"{METADATA_SYSTEM_PROMPT}\n\n{user_text}"},
         ]
 
         max_retries = 3
@@ -271,7 +271,10 @@ class MetadataGenerator:
             lines.append(f"People: {vision.people_count} visible")
         if vision.has_logos:
             lines.append(f"Logos: {', '.join(vision.logos_detected)}")
-        return '\n'.join(lines) if lines else "(No visual context)"
+        ctx = '\n'.join(lines) if lines else ''
+        if not ctx:
+            logger.warning("Vision analysis returned no data — metadata will be generic")
+        return ctx if ctx else "(No visual context)"
 
     def _has_landscape_features(self, vision: VisionAnalysis) -> bool:
         indicators = {

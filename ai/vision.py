@@ -158,9 +158,10 @@ class VisionAnalyzer:
             if location_hint:
                 user_text += f" The photo was taken in: {location_hint}."
 
+        # Merge system + user into single user message — many models (Qwen, OMLX)
+        # ignore or mishandle the system role
         messages = [
-            {'role': 'system', 'content': system_prompt},
-            {'role': 'user', 'content': user_text},
+            {'role': 'user', 'content': f"{system_prompt}\n\n{user_text}"},
         ]
 
         try:
@@ -199,9 +200,9 @@ class VisionAnalyzer:
         if is_key_frame:
             user_text += " This is the most commercially relevant frame."
 
+        # Merge system + user — many models ignore the system role
         messages = [
-            {'role': 'system', 'content': system_prompt},
-            {'role': 'user', 'content': user_text},
+            {'role': 'user', 'content': f"{system_prompt}\n\n{user_text}"},
         ]
 
         try:
@@ -242,8 +243,19 @@ class VisionAnalyzer:
         try:
             data = json.loads(cleaned)
         except json.JSONDecodeError as e:
-            logger.warning(f"Failed to parse vision JSON: {e}")
-            return analysis
+            # Try to find JSON embedded in the response
+            import re
+            match = re.search(r'\{[\s\S]*\}', cleaned)
+            if match:
+                try:
+                    data = json.loads(match.group())
+                except json.JSONDecodeError:
+                    logger.error(f"Vision JSON parse failed (raw preview): {cleaned[:300]}")
+                    return analysis
+            else:
+                logger.error(f"Vision response is not JSON (raw preview): {cleaned[:300]}")
+                return analysis
+            logger.warning(f"Extracted embedded JSON from vision response")
 
         # Map fields
         analysis.country = data.get('country', '')
